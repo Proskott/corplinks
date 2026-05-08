@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 // ВСТАВ СВІЙ ПАРОЛЬ НИЖЧЕ
-const MONGO_URI = "mongodb+srv://kott:<db_password>@cluster0.dowxxbi.mongodb.net/corplinks?retryWrites=true&w=majority&appName=Cluster0";
+const MONGO_URI = "mongodb+srv://kott:24861980qwerty@cluster0.dowxxbi.mongodb.net/corplinks?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
   .then(() => {
