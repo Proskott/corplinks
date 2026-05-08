@@ -2,7 +2,7 @@ const API = window.location.origin + '/api';
 
 var state = {
   currentUser: null, resources: [], users: [], logs: [],
-  tickets: [], accounting: [], contractors: [],
+  tickets: [], accounting: [], contractors: [], hr: [], contacts: [],
   editResId: null, editUserId: null
 };
 
@@ -102,33 +102,28 @@ function setupUI() {
 
   var dm=document.getElementById('deptModules'); if(dm) dm.style.display='block';
   
-  // IT-ЗАЯВКИ: Залишаємо доступним для ВСІХ працівників підприємства
+  // IT-ЗАЯВКИ: Доступно ВСІМ
   var it=document.getElementById('nb-it'); if(it) it.style.display='flex';
 
-  // Спочатку приховуємо всі специфічні вкладки
+  // Приховуємо специфічні вкладки перед перевіркою
   ['nb-finance','nb-sales','nb-hr'].forEach(function(id){
-    var e = document.getElementById(id); 
-    if(e) e.style.display = 'none'; 
+    var e = document.getElementById(id); if(e) e.style.display = 'none'; 
   });
 
   if(isAdmin){
-    // Адмін бачить АБСОЛЮТНО ВСІ вкладки
     ['nb-finance','nb-sales','nb-hr'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display='flex';});
   } else {
-    // БУХГАЛТЕРІЯ: бачать тільки Finance
     if (u.dept === 'Finance') {
       var f = document.getElementById('nb-finance'); if(f) f.style.display='flex';
     }
-    // HR: бачать тільки HR
     if (u.dept === 'HR') {
       var h = document.getElementById('nb-hr'); if(h) h.style.display='flex';
     }
-    // КОНТРАГЕНТИ: бачать Sales (продажі), Finance (бухи) та Legal (юристи)
+    // Контрагенти: бачать Продажі, Бухгалтерія та Юристи
     if (['Sales', 'Finance', 'Legal'].includes(u.dept)) {
       var s = document.getElementById('nb-sales'); if(s) s.style.display='flex';
     }
   }
-  
   applyTheme();
 }
 
@@ -147,6 +142,8 @@ function showPage(page) {
   if(page==='it') { loadTickets().then(function(){renderTickets();}); }
   if(page==='finance') loadAccounting();
   if(page==='sales') loadContractors();
+  if(page==='hr') loadHR();
+  if(page==='contacts') loadContacts();
   if(page==='admin') { loadUsers().then(function(){renderUsers(); loadTickets().then(function(){renderAllTickets();}); loadStats(); loadLogs();}); }
 }
 
@@ -365,7 +362,6 @@ function renderAccounting() {
   }
   g.innerHTML = state.accounting.map(function(item) {
     var val = item.amount || '';
-    // Проверяем, ссылка ли это
     var isLink = val.trim().toLowerCase().indexOf('http') === 0 || val.trim().toLowerCase().indexOf('www') === 0;
     
     var contentHtml = isLink 
@@ -400,12 +396,26 @@ function submitDeptRes(access,prefix) {
   }
 
   if(access==='Sales') {
-    api('POST','/contractors',{company:name,phone:url,service:desc}).then(function(){
+    // Для менеджерів додаємо тип документа та суму
+    var docType = document.getElementById('salDocType') ? document.getElementById('salDocType').value : 'general';
+    var amount = document.getElementById('salAmount') ? document.getElementById('salAmount').value : '';
+    
+    api('POST','/contractors',{company:name,phone:url,service:desc,docType:docType,amount:amount}).then(function(){
       document.getElementById(prefix+'ResName').value='';
       document.getElementById(prefix+'ResUrl').value='';
       document.getElementById(prefix+'ResDesc').value='';
       document.getElementById('salesFormBlock').style.display='none';
       showToast('✅ Додано'); loadContractors();
+    }).catch(function(e){showToast('❌ '+e.message,true);});
+  }
+
+  if(access==='HR') {
+    api('POST','/hr',{title:name,url:url,description:desc}).then(function(){
+      document.getElementById(prefix+'ResName').value='';
+      document.getElementById(prefix+'ResUrl').value='';
+      document.getElementById(prefix+'ResDesc').value='';
+      document.getElementById('hrFormBlock').style.display='none';
+      showToast('✅ Додано'); loadHR();
     }).catch(function(e){showToast('❌ '+e.message,true);});
   }
 }
@@ -425,15 +435,19 @@ function renderContractors() {
     return;
   }
   g.innerHTML = state.contractors.map(function(c) {
-    // Если в поле phone введена ссылка, делаем её красивой
     var isLink = (c.phone && c.phone.trim().indexOf('http') === 0);
     var phoneHtml = isLink 
       ? '<a class="card-url" href="' + esc(c.phone) + '" target="_blank">' + esc(c.phone) + '</a>'
       : '<div style="font-size:13px; margin:5px 0">📞 ' + esc(c.phone) + '</div>';
 
+    // Відображення типу документа
+    var typeLabels = { salary: '💰 Зарплата', sales: '📈 Продажі', general: '📑 Загальне' };
+    var typeHtml = c.docType ? '<div style="font-size:11px; color:var(--primary); margin-top:5px; font-weight:600;">' + (typeLabels[c.docType] || c.docType) + '</div>' : '';
+    var amountHtml = c.amount ? '<div style="font-size:14px; font-weight:700; margin-top:5px;">' + esc(c.amount) + '</div>' : '';
+
     return '<div class="card">' +
       '<div class="card-header"><span class="card-title">' + esc(c.company) + '</span></div>' +
-      phoneHtml +
+      phoneHtml + typeHtml + amountHtml +
       (c.service ? '<div style="font-size:12px; color:var(--text-muted); margin-top:8px; line-height:1.4;">' + esc(c.service) + '</div>' : '') +
       '<div class="card-actions"><button class="btn-icon danger" onclick="deleteContractor(\'' + c._id + '\')">🗑️</button></div></div>';
   }).join('');
@@ -447,6 +461,98 @@ function deleteAccounting(mongoId) {
 function deleteContractor(mongoId) {
   if(!confirm('Видалити?')) return;
   api('DELETE','/contractors/'+mongoId).then(function(){showToast('🗑️ Видалено');loadContractors();});
+}
+
+// =====================================================
+// HR ВІДДІЛ
+// =====================================================
+function loadHR() {
+  return api('GET', '/hr').then(function(data) {
+    state.hr = data;
+    renderHR();
+  }).catch(function() { showToast('Помилка завантаження HR', true); });
+}
+
+function renderHR() {
+  var g = document.getElementById('hrGrid'); if (!g) return;
+  if (!state.hr || !state.hr.length) {
+    g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)"><div style="font-size:36px;margin-bottom:10px">📎</div><div>Записів немає</div></div>';
+    return;
+  }
+  g.innerHTML = state.hr.map(function(item) {
+    var val = item.url || '';
+    var isLink = val.trim().toLowerCase().indexOf('http') === 0 || val.trim().toLowerCase().indexOf('www') === 0;
+
+    var contentHtml = isLink 
+      ? '<a class="card-url" href="' + esc(val) + '" target="_blank">' + esc(val) + '</a>'
+      : '<div style="font-size:14px; font-weight:bold; margin:8px 0;">' + esc(val) + '</div>';
+
+    var descHtml = item.description 
+      ? '<p class="card-desc">' + esc(item.description) + '</p>' 
+      : '<p class="card-desc" style="color:#94a3b8;font-style:italic">Без опису</p>';
+
+    return '<div class="card" style="border-left:4px solid #db2777">' +
+      '<div class="card-header"><span class="card-title">' + esc(item.title) + '</span></div>' +
+      contentHtml + descHtml +
+      '<div class="card-actions"><button class="btn-icon danger" onclick="deleteHR(\'' + item._id + '\')">🗑️</button></div></div>';
+  }).join('');
+}
+
+function deleteHR(mongoId) {
+  if (!confirm('Видалити?')) return;
+  api('DELETE', '/hr/' + mongoId).then(function() {
+    showToast('🗑️ Видалено');
+    loadHR();
+  });
+}
+
+// =====================================================
+// КОНТАКТИ КОМПАНІЇ
+// =====================================================
+function loadContacts() {
+  return api('GET', '/contacts').then(function(data) {
+    state.contacts = data;
+    renderContacts();
+  }).catch(function() { showToast('Помилка контактів', true); });
+}
+
+function renderContacts() {
+  var g = document.getElementById('contactsGrid'); if (!g) return;
+  if (!state.contacts || !state.contacts.length) {
+    g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">Список порожній</div>';
+    return;
+  }
+  g.innerHTML = state.contacts.map(function(c) {
+    return '<div class="card" style="border-left:4px solid var(--primary)">' +
+      '<div style="font-weight:700; font-size:15px;">' + esc(c.name) + '</div>' +
+      '<div style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">' + esc(c.position) + '</div>' +
+      '<div style="font-size:13px;">📞 ' + esc(c.phone) + '</div>' +
+      '<div style="font-size:13px;">✉️ ' + esc(c.email) + '</div>' +
+      '<div class="card-actions"><button class="btn-icon danger" onclick="deleteContact(\'' + c._id + '\')">🗑️</button></div></div>';
+  }).join('');
+}
+
+function submitContact() {
+  var name = document.getElementById('conName').value.trim();
+  var pos = document.getElementById('conPos').value.trim();
+  var phone = document.getElementById('conPhone').value.trim();
+  var email = document.getElementById('conEmail').value.trim();
+  if(!name || !phone) return showToast('ПІБ та телефон обов\'язкові', true);
+
+  api('POST', '/contacts', { name:name, position:pos, phone:phone, email:email }).then(function() {
+    document.getElementById('conName').value = '';
+    document.getElementById('conPos').value = '';
+    document.getElementById('conPhone').value = '';
+    document.getElementById('conEmail').value = '';
+    toggleBlock('contactFormBlock');
+    showToast('✅ Контакт додано');
+    loadContacts();
+  });
+}
+
+function deleteContact(id) {
+  if(!confirm('Видалити контакт?')) return;
+  api('DELETE', '/contacts/' + id).then(function() { showToast('🗑️ Видалено'); loadContacts(); });
 }
 
 // =====================================================

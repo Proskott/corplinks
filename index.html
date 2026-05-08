@@ -48,6 +48,7 @@
           <button class="nav-btn dept-tab" id="nb-sales" onclick="showPage('sales')" style="display:none;"><span class="icon">🤝</span> Контрагенти</button>
           <button class="nav-btn dept-tab" id="nb-hr" onclick="showPage('hr')" style="display:none;"><span class="icon">👥</span> HR-відділ</button>
         </div>
+        <button class="nav-btn" id="nb-contacts" onclick="showPage('contacts')"><span class="icon">📇</span> Контакти компанії</button>
         <button class="nav-btn admin-only" id="nb-admin" onclick="showPage('admin')" style="margin-top:auto;"><span class="icon">⚙️</span> Адміністратор</button>
       </nav>
       <div class="user-profile" id="currentUserProfile"></div>
@@ -132,9 +133,25 @@
         </header>
         <div id="salesFormBlock" class="form-block" style="display:none;">
           <h3 style="margin-bottom:16px;font-size:16px;color:var(--text-main);">Нове посилання</h3>
-          <div class="form-group"><label>Назва *</label><input type="text" id="salResName" placeholder="CRM-система Bitrix24" /></div>
-          <div class="form-group"><label>URL *</label><input type="url" id="salResUrl" placeholder="https://..." /></div>
-          <div class="form-group"><label>Опис</label><textarea id="salResDesc" rows="2" placeholder="Для чого використовується..."></textarea></div>
+          <div class="form-group"><label>Назва *</label><input type="text" id="salResName" placeholder="Назва компанії" /></div>
+          <div class="form-group"><label>URL / Телефон *</label><input type="text" id="salResUrl" placeholder="https://... або телефон" /></div>
+          
+          <div class="form-row">
+            <div class="form-group" style="flex:1">
+                <label>Тип документа</label>
+                <select id="salDocType">
+                  <option value="general">📑 Загальна інформація</option>
+                  <option value="salary">💰 Зарплата партнерам</option>
+                  <option value="sales">📈 Звіт про продажі</option>
+                </select>
+            </div>
+            <div class="form-group" style="flex:1">
+                <label>Сума (грн)</label>
+                <input type="text" id="salAmount" placeholder="Наприклад: 15 000" />
+            </div>
+          </div>
+
+          <div class="form-group"><label>Опис / Послуга</label><textarea id="salResDesc" rows="2" placeholder="Опис співпраці..."></textarea></div>
           <div style="display:flex;gap:10px;justify-content:flex-end;">
             <button class="btn-cancel" onclick="toggleBlock('salesFormBlock')">Скасувати</button>
             <button class="btn-primary" onclick="submitDeptRes('Sales','sal')">💾 Зберегти</button>
@@ -159,6 +176,28 @@
           </div>
         </div>
         <div class="cards-grid" id="hrGrid"></div>
+      </section>
+
+      <section class="page" id="page-contacts">
+        <header class="page-header">
+          <div><h1>Контакти компанії</h1><p style="color:var(--text-muted);margin-top:4px;">Телефонний довідник підприємства</p></div>
+          <button class="btn-primary" onclick="toggleBlock('contactFormBlock')">+ Додати контакт</button>
+        </header>
+        <div id="contactFormBlock" class="form-block" style="display:none;">
+          <div class="form-row">
+            <div class="form-group" style="flex:1"><label>ПІБ</label><input type="text" id="conName" placeholder="Петренко Олександр" /></div>
+            <div class="form-group" style="flex:1"><label>Посада</label><input type="text" id="conPos" placeholder="Головний інженер" /></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="flex:1"><label>Телефон</label><input type="text" id="conPhone" placeholder="+380..." /></div>
+            <div class="form-group" style="flex:1"><label>Email</label><input type="email" id="conEmail" placeholder="mail@corp.com" /></div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button class="btn-cancel" onclick="toggleBlock('contactFormBlock')">Скасувати</button>
+            <button class="btn-primary" onclick="submitContact()">💾 Зберегти</button>
+          </div>
+        </div>
+        <div class="cards-grid" id="contactsGrid"></div>
       </section>
 
       <section class="page" id="page-admin">

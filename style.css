@@ -17,6 +17,7 @@ body.dark {
   --border: #334155; --shadow: 0 4px 6px -1px rgba(0,0,0,0.4); --table-head: #0f172a;
   --input-bg: #0f172a;
 }
+
 body.dark .login-card { background:#1e293b; }
 body.dark .login-card h2 { color:#f1f5f9; }
 body.dark .toolbar { background:var(--surface); }
@@ -161,6 +162,7 @@ select[multiple] option:checked { background:#e0f2fe; color:var(--primary); font
   .toast { bottom:16px; left:16px; right:16px; transform:none; }
   .login-card { padding:28px 22px; margin:16px; }
 }
+
 @media(max-width:380px) {
   .main-content { padding:70px 10px 20px 10px; }
   .stats-cards { grid-template-columns:1fr; }
