@@ -101,14 +101,34 @@ function setupUI() {
   document.querySelectorAll('.manager-only').forEach(function(el){el.style.display=isManager?'':'none';});
 
   var dm=document.getElementById('deptModules'); if(dm) dm.style.display='block';
+  
+  // IT-ЗАЯВКИ: Залишаємо доступним для ВСІХ працівників підприємства
   var it=document.getElementById('nb-it'); if(it) it.style.display='flex';
 
+  // Спочатку приховуємо всі специфічні вкладки
+  ['nb-finance','nb-sales','nb-hr'].forEach(function(id){
+    var e = document.getElementById(id); 
+    if(e) e.style.display = 'none'; 
+  });
+
   if(isAdmin){
-    ['nb-finance','nb-sales'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display='flex';});
+    // Адмін бачить АБСОЛЮТНО ВСІ вкладки
+    ['nb-finance','nb-sales','nb-hr'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display='flex';});
   } else {
-    var map={Finance:'nb-finance',Sales:'nb-sales'};
-    if(map[u.dept]){var b=document.getElementById(map[u.dept]);if(b)b.style.display='flex';}
+    // БУХГАЛТЕРІЯ: бачать тільки Finance
+    if (u.dept === 'Finance') {
+      var f = document.getElementById('nb-finance'); if(f) f.style.display='flex';
+    }
+    // HR: бачать тільки HR
+    if (u.dept === 'HR') {
+      var h = document.getElementById('nb-hr'); if(h) h.style.display='flex';
+    }
+    // КОНТРАГЕНТИ: бачать Sales (продажі), Finance (бухи) та Legal (юристи)
+    if (['Sales', 'Finance', 'Legal'].includes(u.dept)) {
+      var s = document.getElementById('nb-sales'); if(s) s.style.display='flex';
+    }
   }
+  
   applyTheme();
 }
 

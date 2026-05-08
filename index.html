@@ -195,7 +195,13 @@
       <div class="form-group"><label>Опис</label><textarea id="rDesc" rows="2" placeholder="Для чого використовується..."></textarea></div>
       <div class="form-group"><label>Доступ</label>
         <select id="rAccess" multiple size="5" style="height:auto;padding:5px;">
-          <option value="ALL" selected>Всі працівники</option><option value="IT">IT-відділ</option><option value="Finance">Бухгалтерія</option><option value="Sales">Продажі</option><option value="HR">HR-відділ</option><option value="Management">Керівництво</option>
+          <option value="ALL" selected>Всі працівники</option>
+          <option value="IT">IT-відділ</option>
+          <option value="Finance">Бухгалтерія</option>
+          <option value="Sales">Продажі</option>
+          <option value="HR">HR-відділ</option>
+          <option value="Legal">Юристи</option>
+          <option value="Management">Керівництво</option>
         </select>
       </div>
       <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('resOverlay')">Скасувати</button><button class="btn-primary" onclick="saveResource()">Зберегти</button></div>
@@ -209,7 +215,14 @@
       <div class="form-group"><label>Email *</label><input type="email" id="uEmail" placeholder="employee@enterprise.com" /></div>
       <div class="form-row">
         <div class="form-group" style="flex:1"><label>Підрозділ</label>
-          <select id="uDept"><option value="IT">IT-відділ</option><option value="Finance">Бухгалтерія</option><option value="Sales">Продажі</option><option value="HR">HR</option><option value="Management">Керівництво</option></select>
+          <select id="uDept">
+            <option value="IT">IT-відділ</option>
+            <option value="Finance">Бухгалтерія</option>
+            <option value="Sales">Продажі</option>
+            <option value="HR">HR-відділ</option>
+            <option value="Legal">Юристи</option>
+            <option value="Management">Керівництво</option>
+          </select>
         </div>
         <div class="form-group" style="flex:1"><label>Роль</label>
           <select id="uRole"><option value="viewer">Стажер</option><option value="user">Співробітник</option><option value="manager">Керівник</option><option value="admin">Адміністратор</option></select>
