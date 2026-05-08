@@ -1,5 +1,5 @@
 const express = require('express');
-const router  = express.Rowter(); // Исправлено на router
+const router  = express.Router();
 const db      = require('../db');
 
 router.get('/', (req, res) => {
