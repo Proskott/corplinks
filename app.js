@@ -24,7 +24,7 @@ function closeSidebar() { document.getElementById('sidebar').classList.remove('o
 var toastTimer;
 function showToast(msg,isErr) {
   var el=document.getElementById('toast'); if(!el) return;
-  el.textContent=msg; el.style.borderLeftColor=isErr?'#ef4444':'#2563eb';
+  el.textContent=msg; el.style.borderLeftColor=isErr?'#f00303':'#2563eb';
   el.classList.add('show'); clearTimeout(toastTimer);
   toastTimer=setTimeout(function(){el.classList.remove('show');},3000);
 }
@@ -332,9 +332,12 @@ function renderAllTickets() {
 // =====================================================
 // БУХГАЛТЕРІЯ
 // =====================================================
+function loadAccounting() {
+  return api('GET','/accounting').then(function(data){state.accounting=data;renderAccounting();})
+  .catch(function(){showToast('Помилка завантаження',true);});
+}
+
 function renderAccounting() {
-  var g = document.getElementById('financeGrid'); if (!g) return;
-  function renderAccounting() {
   var g = document.getElementById('financeGrid'); if (!g) return;
   if (!state.accounting.length) {
     g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)"><div style="font-size:36px;margin-bottom:10px">📎</div><div>Записів немає</div></div>';
@@ -342,16 +345,13 @@ function renderAccounting() {
   }
   g.innerHTML = state.accounting.map(function(item) {
     var val = item.amount || '';
-    // Проверяем, ссылка ли это
+    // Перевіряємо, чи це посилання
     var isLink = val.trim().toLowerCase().indexOf('http') === 0 || val.trim().toLowerCase().indexOf('www') === 0;
     
-    // Если ссылка — применяем тот же стиль, что в контрагентах (card-url)
-    // Если цифры — выводим как зарплату
     var contentHtml = isLink 
       ? '<a class="card-url" href="' + esc(val) + '" target="_blank">' + esc(val) + '</a>'
       : '<div style="font-size:18px; font-weight:bold; margin:8px 0;">💰 ' + esc(val) + ' грн</div>';
 
-    // Описание
     var descHtml = item.description 
       ? '<p class="card-desc">' + esc(item.description) + '</p>' 
       : '<p class="card-desc" style="color:#94a3b8;font-style:italic">Без опису</p>';
@@ -363,31 +363,8 @@ function renderAccounting() {
       '<div class="card-actions"><button class="btn-icon danger" onclick="deleteAccounting(\'' + item._id + '\')">🗑️</button></div></div>';
   }).join('');
 }
+
 function submitDeptRes(access,prefix) {
-  var name=document.getElementById(prefix+'ResName').value.trim();
-  var url=document.getElementById(prefix+'ResUrl').value.trim();
-  var desc=document.getElementById(prefix+'ResDesc').value.trim();
-
-  if(access==='Finance') {
-    api('POST','/accounting',{title:name,amount:url,description:desc}).then(function(){
-      document.getElementById(prefix+'ResName').value='';
-      document.getElementById(prefix+'ResUrl').value='';
-      document.getElementById(prefix+'ResDesc').value='';
-      document.getElementById('financeFormBlock').style.display='none';
-      showToast('✅ Додано'); loadAccounting();
-    }).catch(function(e){showToast('❌ '+e.message,true);});
-  }
-
-  if(access==='Sales') {
-    api('POST','/contractors',{company:name,phone:url,service:desc}).then(function(){
-      document.getElementById(prefix+'ResName').value='';
-      document.getElementById(prefix+'ResUrl').value='';
-      document.getElementById(prefix+'ResDesc').value='';
-      document.getElementById('salesFormBlock').style.display='none';
-      showToast('✅ Додано'); loadContractors();
-    }).catch(function(e){showToast('❌ '+e.message,true);});
-  }
-}
 
 // =====================================================
 // КОНТРАГЕНТИ
@@ -545,4 +522,3 @@ document.addEventListener('DOMContentLoaded',function(){
       setupUI(); showPage('resources');
     }catch(e){sessionStorage.removeItem('wl_session');}
   }
-});
