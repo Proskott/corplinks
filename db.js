@@ -6,6 +6,8 @@ mongoose.connect(MONGO_URI)
   .then(() => console.log('✅ Connected to MongoDB Atlas'))
   .catch(err => console.error('❌ Connection Error:', err));
 
+// --- СХЕМИ ---
+
 var userSchema = new mongoose.Schema({
   name: String, email: String, dept: String, role: String,
   password: String, created_at: String
@@ -24,9 +26,28 @@ var resourceSchema = new mongoose.Schema({
 var accountingSchema = new mongoose.Schema({
   title: String, amount: String, description: String, created_at: String
 });
+
+// Оновлена схема контрагентів для менеджерів (додано тип документа та суму)
 var contractorSchema = new mongoose.Schema({
-  company: String, phone: String, service: String, created_at: String
+  company: String, 
+  phone: String, 
+  service: String, 
+  docType: String, // 'general', 'salary', 'sales'
+  amount: String, 
+  created_at: String
 });
+
+// Нова схема для HR-відділу
+var hrSchema = new mongoose.Schema({
+  title: String, url: String, description: String, created_at: String
+});
+
+// Нова схема для контактів компанії
+var contactSchema = new mongoose.Schema({
+  name: String, position: String, phone: String, email: String, created_at: String
+});
+
+// --- МОДЕЛІ ---
 
 var User = mongoose.model('User', userSchema);
 var Ticket = mongoose.model('Ticket', ticketSchema);
@@ -34,6 +55,8 @@ var Log = mongoose.model('Log', logSchema);
 var Resource = mongoose.model('Resource', resourceSchema);
 var Accounting = mongoose.model('Accounting', accountingSchema);
 var Contractor = mongoose.model('Contractor', contractorSchema);
+var HR = mongoose.model('HR', hrSchema);
+var Contact = mongoose.model('Contact', contactSchema);
 
 var db = {
 
@@ -129,13 +152,16 @@ var db = {
     return await Accounting.findByIdAndDelete(mongoId);
   },
 
-  // --- КОНТРАГЕНТИ ---
+  // --- КОНТРАГЕНТИ (Оновлено) ---
   async getContractors() { return await Contractor.find().sort({ company: 1 }); },
 
   async createContractor(data) {
     return await new Contractor({
-      company: data.company, phone: data.phone,
+      company: data.company, 
+      phone: data.phone,
       service: data.service || '',
+      docType: data.docType || 'general',
+      amount: data.amount || '',
       created_at: new Date().toLocaleString('uk-UA')
     }).save();
   },
@@ -143,6 +169,32 @@ var db = {
   async deleteContractor(mongoId) {
     return await Contractor.findByIdAndDelete(mongoId);
   },
+
+  // --- HR ВІДДІЛ (Нове) ---
+  async getHR() { return await HR.find().sort({ _id: -1 }); },
+
+  async createHR(data) {
+    return await new HR({
+      title: data.title, url: data.url,
+      description: data.description || '',
+      created_at: new Date().toLocaleString('uk-UA')
+    }).save();
+  },
+
+  async deleteHR(mongoId) { return await HR.findByIdAndDelete(mongoId); },
+
+  // --- КОНТАКТИ КОМПАНІЇ (Нове) ---
+  async getContacts() { return await Contact.find().sort({ name: 1 }); },
+
+  async createContact(data) {
+    return await new Contact({
+      name: data.name, position: data.position,
+      phone: data.phone, email: data.email,
+      created_at: new Date().toLocaleString('uk-UA')
+    }).save();
+  },
+
+  async deleteContact(mongoId) { return await Contact.findByIdAndDelete(mongoId); },
 
   // --- ЖУРНАЛ ---
   async getLogs() { return await Log.find().sort({ _id: -1 }).limit(100); },
