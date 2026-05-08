@@ -9,13 +9,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
-// ПІДКЛЮЧЕННЯ ВСІХ API (Тепер їх 6)
-app.use('/api/users',       require('./routes/users'));
-app.use('/api/tickets',     require('./routes/tickets'));
-app.use('/api/resources',   require('./routes/resources'));
-app.use('/api/logs',        require('./routes/logs'));
-app.use('/api/accounting',  require('./routes/accounting'));
-app.use('/api/contractors', require('./routes/contractors'));
+app.use('/api/users',        require('./routes/users'));
+app.use('/api/tickets',      require('./routes/tickets'));
+app.use('/api/resources',    require('./routes/resources'));
+app.use('/api/logs',         require('./routes/logs'));
+app.use('/api/accounting',   require('./routes/accounting'));
+app.use('/api/contractors',  require('./routes/contractors'));
 
 app.post('/api/auth/login', async (req, res) => {
   try {
@@ -29,6 +28,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.get('/api/stats', async (req, res) => res.json(await db.getStats()));
+
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-app.listen(PORT, () => console.log(`🚀 Cloud Server running on port ${PORT}`));
+app.listen(PORT, () => console.log('Server running on port ' + PORT));
