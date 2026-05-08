@@ -6,81 +6,168 @@ mongoose.connect(MONGO_URI)
   .then(() => console.log('✅ Connected to MongoDB Atlas'))
   .catch(err => console.error('❌ Connection Error:', err));
 
-// --- СХЕМИ ---
-const userSchema = new mongoose.Schema({ id: Number, name: String, email: String, dept: String, role: String, password: { type: String, select: true }, created_at: String });
-const ticketSchema = new mongoose.Schema({ id: Number, title: String, cat: String, priority: String, desc: String, status: String, author: String, authorId: Number, dept: String, createdAt: String });
-const logSchema = new mongoose.Schema({ id: Number, action: String, user_name: String, created_at: String });
-const resourceSchema = new mongoose.Schema({ id: Number, name: String, url: String, cat: String, desc: String, access: [String], created_at: String });
-
-// НОВІ СХЕМИ
-const accountingSchema = new mongoose.Schema({
-  id: Number, title: String, amount: Number, type: String, date: String, category: String, description: String
+var userSchema = new mongoose.Schema({
+  name: String, email: String, dept: String, role: String,
+  password: String, created_at: String
+});
+var ticketSchema = new mongoose.Schema({
+  title: String, cat: String, priority: String, desc: String,
+  status: String, author: String, authorId: String, dept: String, createdAt: String
+});
+var logSchema = new mongoose.Schema({
+  action: String, user_name: String, created_at: String
+});
+var resourceSchema = new mongoose.Schema({
+  name: String, url: String, cat: String, desc: String,
+  access: String, created_at: String
+});
+var accountingSchema = new mongoose.Schema({
+  title: String, amount: String, description: String, created_at: String
+});
+var contractorSchema = new mongoose.Schema({
+  company: String, phone: String, service: String, created_at: String
 });
 
-const contractorSchema = new mongoose.Schema({
-  id: Number, company: String, contact: String, phone: String, email: String, service: String, status: String
-});
+var User = mongoose.model('User', userSchema);
+var Ticket = mongoose.model('Ticket', ticketSchema);
+var Log = mongoose.model('Log', logSchema);
+var Resource = mongoose.model('Resource', resourceSchema);
+var Accounting = mongoose.model('Accounting', accountingSchema);
+var Contractor = mongoose.model('Contractor', contractorSchema);
 
-const User = mongoose.model('User', userSchema);
-const Ticket = mongoose.model('Ticket', ticketSchema);
-const Log = mongoose.model('Log', logSchema);
-const Resource = mongoose.model('Resource', resourceSchema);
-const Accounting = mongoose.model('Accounting', accountingSchema);
-const Contractor = mongoose.model('Contractor', contractorSchema);
+var db = {
 
-const db = {
-  // Користувачі
+  // --- АВТОРИЗАЦІЯ ---
   async loginUser(email, password) {
-    const user = await User.findOne({ email: email.toLowerCase().trim(), password });
-    if (!user) throw new Error('Невірний пароль або email');
+    var user = await User.findOne({ email: email.toLowerCase().trim(), password: password });
+    if (!user) throw new Error('Невірний email або пароль');
     return user;
   },
+
+  // --- КОРИСТУВАЧІ ---
   async getUsers() { return await User.find().sort({ name: 1 }); },
+
   async createUser(data) {
-    const count = await User.countDocuments();
-    return await new User({ ...data, id: count + 1, created_at: new Date().toLocaleString() }).save();
+    if (!data.password || data.password.length < 4) throw new Error('Пароль мінімум 4 символи');
+    var exists = await User.findOne({ email: data.email.toLowerCase().trim() });
+    if (exists) throw new Error('Цей email вже зайнятий');
+    return await new User({
+      name: data.name, email: data.email.toLowerCase().trim(),
+      dept: data.dept, role: data.role, password: data.password,
+      created_at: new Date().toLocaleString('uk-UA')
+    }).save();
   },
-  async deleteUser(id) { return await User.findOneAndDelete({ id: Number(id) }); },
 
-  // Бухгалтерія (Accounting)
-  async getAccounting() { return await Accounting.find().sort({ _id: -1 }); },
-  async createAccounting(data) {
-    const count = await Accounting.countDocuments();
-    return await new Accounting({ ...data, id: count + 1 }).save();
+  async updateUser(mongoId, data) {
+    var update = { name: data.name, email: data.email, dept: data.dept, role: data.role };
+    if (data.password && data.password.length >= 4) update.password = data.password;
+    var user = await User.findByIdAndUpdate(mongoId, update, { new: true });
+    if (!user) throw new Error('Користувача не знайдено');
+    return user;
   },
-  async deleteAccounting(id) { return await Accounting.findOneAndDelete({ id: Number(id) }); },
 
-  // Контрагенти (Contractors)
-  async getContractors() { return await Contractor.find().sort({ company: 1 }); },
-  async createContractor(data) {
-    const count = await Contractor.countDocuments();
-    return await new Contractor({ ...data, id: count + 1 }).save();
+  async deleteUser(mongoId) {
+    var user = await User.findByIdAndDelete(mongoId);
+    if (!user) throw new Error('Не знайдено');
+    return user;
   },
-  async deleteContractor(id) { return await Contractor.findOneAndDelete({ id: Number(id) }); },
 
-  // Інше
-  async getTickets() { return await Ticket.find().sort({ _id: -1 }); },
-  async createTicket(data) {
-    const count = await Ticket.countDocuments();
-    return await new Ticket({ ...data, id: count + 1, status: 'new', createdAt: new Date().toLocaleString() }).save();
-  },
-  async updateTicketStatus(id, status) { return await Ticket.findOneAndUpdate({ id: Number(id) }, { status }); },
-  async deleteTicket(id) { return await Ticket.findOneAndDelete({ id: Number(id) }); },
-
+  // --- РЕСУРСИ ---
   async getResources() { return await Resource.find().sort({ _id: -1 }); },
-  async createResource(data) {
-    const count = await Resource.countDocuments();
-    return await new Resource({ ...data, id: count + 1, created_at: new Date().toLocaleString() }).save();
-  },
-  async deleteResource(id) { return await Resource.findOneAndDelete({ id: Number(id) }); },
 
-  async getLogs() { return await Log.find().sort({ _id: -1 }).limit(50); },
-  async addLog(action, userName) {
-    await new Log({ action, user_name: userName, created_at: new Date().toLocaleString() }).save();
+  async createResource(data) {
+    return await new Resource({
+      name: data.name, url: data.url, cat: data.cat, desc: data.desc,
+      access: data.access || 'ALL', created_at: new Date().toLocaleString('uk-UA')
+    }).save();
   },
+
+  async updateResource(mongoId, data) {
+    var res = await Resource.findByIdAndUpdate(mongoId, {
+      name: data.name, url: data.url, cat: data.cat, desc: data.desc
+    }, { new: true });
+    if (!res) throw new Error('Ресурс не знайдено');
+    return res;
+  },
+
+  async deleteResource(mongoId) {
+    return await Resource.findByIdAndDelete(mongoId);
+  },
+
+  // --- ЗАЯВКИ ---
+  async getTickets() { return await Ticket.find().sort({ _id: -1 }); },
+
+  async createTicket(data) {
+    return await new Ticket({
+      title: data.title, cat: data.cat, priority: data.priority,
+      desc: data.desc, status: 'new', author: data.author,
+      authorId: data.authorId, dept: data.dept,
+      createdAt: new Date().toLocaleString('uk-UA')
+    }).save();
+  },
+
+  async updateTicketStatus(mongoId, status) {
+    return await Ticket.findByIdAndUpdate(mongoId, { status: status }, { new: true });
+  },
+
+  async deleteTicket(mongoId) {
+    return await Ticket.findByIdAndDelete(mongoId);
+  },
+
+  // --- БУХГАЛТЕРІЯ ---
+  async getAccounting() { return await Accounting.find().sort({ _id: -1 }); },
+
+  async createAccounting(data) {
+    return await new Accounting({
+      title: data.title, amount: data.amount,
+      description: data.description || '',
+      created_at: new Date().toLocaleString('uk-UA')
+    }).save();
+  },
+
+  async deleteAccounting(mongoId) {
+    return await Accounting.findByIdAndDelete(mongoId);
+  },
+
+  // --- КОНТРАГЕНТИ ---
+  async getContractors() { return await Contractor.find().sort({ company: 1 }); },
+
+  async createContractor(data) {
+    return await new Contractor({
+      company: data.company, phone: data.phone,
+      service: data.service || '',
+      created_at: new Date().toLocaleString('uk-UA')
+    }).save();
+  },
+
+  async deleteContractor(mongoId) {
+    return await Contractor.findByIdAndDelete(mongoId);
+  },
+
+  // --- ЖУРНАЛ ---
+  async getLogs() { return await Log.find().sort({ _id: -1 }).limit(100); },
+
+  async addLog(action, userName) {
+    await new Log({
+      action: action, user_name: userName || 'Система',
+      created_at: new Date().toLocaleString('uk-UA')
+    }).save();
+  },
+
+  // --- СТАТИСТИКА ---
   async getStats() {
-    const [u, r, t] = await Promise.all([User.countDocuments(), Resource.countDocuments(), Ticket.countDocuments()]);
-    return { totalUsers: u, totalResources: r, totalTickets: t, adminCount: await User.countDocuments({role:'admin'}) };
+    var results = await Promise.all([
+      User.countDocuments(),
+      Resource.countDocuments(),
+      Ticket.countDocuments(),
+      User.countDocuments({ role: 'admin' }),
+      User.countDocuments({ role: 'manager' })
+    ]);
+    return {
+      totalUsers: results[0], totalResources: results[1],
+      totalTickets: results[2], adminCount: results[3],
+      managerCount: results[4]
+    };
   }
 };
 
