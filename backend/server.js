@@ -1,18 +1,21 @@
 const express = require('express');
-const cors    = require('cors');
-const path    = require('path');
-const db      = require('./db');
-const app     = express();
-const PORT    = process.env.PORT || 3000;
+const cors = require('cors');
+const path = require('path');
+const db = require('./db');
+const app = express();
+const PORT = process.env.PORT || 10000;
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
-app.use('/api/users',     require('./routes/users'));
-app.use('/api/tickets',   require('./routes/tickets'));
-app.use('/api/resources', require('./routes/resources'));
-app.use('/api/logs',      require('./routes/logs'));
+// ПІДКЛЮЧЕННЯ ВСІХ API (Тепер їх 6)
+app.use('/api/users',       require('./routes/users'));
+app.use('/api/tickets',     require('./routes/tickets'));
+app.use('/api/resources',   require('./routes/resources'));
+app.use('/api/logs',        require('./routes/logs'));
+app.use('/api/accounting',  require('./routes/accounting'));
+app.use('/api/contractors', require('./routes/contractors'));
 
 app.post('/api/auth/login', async (req, res) => {
   try {
@@ -28,4 +31,4 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/stats', async (req, res) => res.json(await db.getStats()));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-app.listen(PORT, () => console.log(`🚀 Cloud Server on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Cloud Server running on port ${PORT}`));
