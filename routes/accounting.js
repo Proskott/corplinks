@@ -1,15 +1,35 @@
-const express = require('express');
-const router = express.Router();
-const db = require('../db');
+// 1. Завантаження з хмари (викликай цю функцію при відкритті вкладки)
+async function loadAccounting() {
+    const res = await fetch('/api/accounting');
+    const data = await res.json();
+    
+    const container = document.getElementById('accounting-list'); // перевір ID свого контейнера
+    container.innerHTML = ''; // очищуємо старе
+    
+    data.forEach(item => {
+        // Тут твій код створення рядка таблиці чи картки
+        container.innerHTML += `<div>${item.title}: ${item.amount} грн</div>`; 
+    });
+}
 
-router.get('/', async (req, res) => res.json(await db.getAccounting()));
-router.post('/', async (req, res) => {
-  const item = await db.createAccounting(req.body);
-  await db.addLog(`Фінансова операція: ${item.title}`, 'Бухгалтерія');
-  res.json(item);
-});
-router.delete('/:id', async (req, res) => {
-  await db.deleteAccounting(req.params.id);
-  res.json({ success: true });
-});
-module.exports = router;
+// 2. Додавання нового запису
+async function saveAccountingEntry(event) {
+    event.preventDefault();
+    const formData = {
+        title: document.getElementById('acc-title').value,
+        amount: Number(document.getElementById('acc-amount').value),
+        type: document.getElementById('acc-type').value,
+        date: new Date().toLocaleDateString()
+    };
+
+    const res = await fetch('/api/accounting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+    });
+
+    if (res.ok) {
+        loadAccounting(); // Перемальовуємо список для всіх
+        alert('Збережено в хмарі!');
+    }
+}
