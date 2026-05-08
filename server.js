@@ -1,64 +1,31 @@
 const express = require('express');
-const cors    = require('cors');
-const path    = require('path');
-const db      = require('./db');
-
-const app  = express();
+const cors = require('cors');
+const path = require('path');
+const db = require('./db');
+const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
-// ==========================================
-// ІМПОРТ МАРШРУТІВ (РОУТЕРІВ)
-// ==========================================
-const resourcesRouter = require('./routes/resources');
-const usersRouter     = require('./routes/users');
-const logsRouter      = require('./routes/logs');
-const ticketsRouter   = require('./routes/tickets'); // <--- Імпорт заявок тут
+app.use('/api/users', require('./routes/users'));
+app.use('/api/tickets', require('./routes/tickets'));
+app.use('/api/resources', require('./routes/resources'));
+app.use('/api/logs', require('./routes/logs'));
 
-// ==========================================
-// ПІДКЛЮЧЕННЯ API МАРШРУТІВ
-// ==========================================
-app.use('/api/resources', resourcesRouter);
-app.use('/api/users',     usersRouter);
-app.use('/api/logs',      logsRouter);
-app.use('/api/tickets',   ticketsRouter); // <--- Підключення заявок тут
-
-// Авторизація
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Введіть email та пароль' });
-    const user = db.loginUser(email, password);
-    db.addLog('Вхід в систему', user.name);
+    const user = await db.loginUser(email, password);
+    await db.addLog('Вхід в систему', user.name);
     res.json({ success: true, user });
   } catch (err) {
     res.status(401).json({ error: err.message });
   }
 });
 
-// Статистика
-app.get('/api/stats', (req, res) => {
-  res.json(db.getStats());
-});
+app.get('/api/stats', async (req, res) => res.json(await db.getStats()));
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-// ==========================================
-// CATCH-ALL МАРШРУТ (має бути ОСТАННІМ перед listen)
-// ==========================================
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// ==========================================
-// ЗАПУСК СЕРВЕРА
-// ==========================================
-app.listen(PORT, () => {
-  console.log('');
-  console.log('===========================================');
-  console.log('  CorpLinks сервер запущено!');
-  console.log(`  Відкрий браузер: http://localhost:${PORT}`);
-  console.log('===========================================');
-  console.log('');
-});
+app.listen(PORT, () => console.log(`🚀 Cloud Server on port ${PORT}`));
