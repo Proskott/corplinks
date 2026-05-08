@@ -332,27 +332,33 @@ function renderAllTickets() {
 // =====================================================
 // БУХГАЛТЕРІЯ
 // =====================================================
-function loadAccounting() {
-  return api('GET','/accounting').then(function(data){state.accounting=data;renderAccounting();})
-  .catch(function(){showToast('Помилка завантаження',true);});
-}
-
 function renderAccounting() {
+  var g = document.getElementById('financeGrid'); if (!g) return;
+  function renderAccounting() {
   var g = document.getElementById('financeGrid'); if (!g) return;
   if (!state.accounting.length) {
     g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)"><div style="font-size:36px;margin-bottom:10px">📎</div><div>Записів немає</div></div>';
     return;
   }
   g.innerHTML = state.accounting.map(function(item) {
-    // Проверяем, является ли описание ссылкой
-    var isLink = (item.description && item.description.trim().indexOf('http') === 0);
-    var descHtml = isLink 
-      ? '<a class="card-url" href="'+esc(item.description)+'" target="_blank">'+esc(item.description)+'</a>'
-      : (item.description ? '<p class="card-desc">' + esc(item.description) + '</p>' : '');
+    var val = item.amount || '';
+    // Проверяем, ссылка ли это
+    var isLink = val.trim().toLowerCase().indexOf('http') === 0 || val.trim().toLowerCase().indexOf('www') === 0;
+    
+    // Если ссылка — применяем тот же стиль, что в контрагентах (card-url)
+    // Если цифры — выводим как зарплату
+    var contentHtml = isLink 
+      ? '<a class="card-url" href="' + esc(val) + '" target="_blank">' + esc(val) + '</a>'
+      : '<div style="font-size:18px; font-weight:bold; margin:8px 0;">💰 ' + esc(val) + ' грн</div>';
+
+    // Описание
+    var descHtml = item.description 
+      ? '<p class="card-desc">' + esc(item.description) + '</p>' 
+      : '<p class="card-desc" style="color:#94a3b8;font-style:italic">Без опису</p>';
 
     return '<div class="card" style="border-left:4px solid #059669">' +
       '<div class="card-header"><span class="card-title">' + esc(item.title) + '</span></div>' +
-      '<div style="font-size:18px; font-weight:700; color:var(--text-main); margin: 10px 0;">💰 ' + esc(item.amount) + '</div>' +
+      contentHtml +
       descHtml +
       '<div class="card-actions"><button class="btn-icon danger" onclick="deleteAccounting(\'' + item._id + '\')">🗑️</button></div></div>';
   }).join('');
