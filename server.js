@@ -10,6 +10,23 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
+// ==========================================
+// ІМПОРТ МАРШРУТІВ (РОУТЕРІВ)
+// ==========================================
+const resourcesRouter = require('./routes/resources');
+const usersRouter     = require('./routes/users');
+const logsRouter      = require('./routes/logs');
+const ticketsRouter   = require('./routes/tickets'); // <--- Імпорт заявок тут
+
+// ==========================================
+// ПІДКЛЮЧЕННЯ API МАРШРУТІВ
+// ==========================================
+app.use('/api/resources', resourcesRouter);
+app.use('/api/users',     usersRouter);
+app.use('/api/logs',      logsRouter);
+app.use('/api/tickets',   ticketsRouter); // <--- Підключення заявок тут
+
+// Авторизація
 app.post('/api/auth/login', (req, res) => {
   try {
     const { email, password } = req.body;
@@ -22,32 +39,26 @@ app.post('/api/auth/login', (req, res) => {
   }
 });
 
-const resourcesRouter = require('./routes/resources');
-const usersRouter     = require('./routes/users');
-const logsRouter      = require('./routes/logs');
-
-app.use('/api/resources', resourcesRouter);
-app.use('/api/users',     usersRouter);
-app.use('/api/logs',      logsRouter);
-
+// Статистика
 app.get('/api/stats', (req, res) => {
   res.json(db.getStats());
 });
 
+// ==========================================
+// CATCH-ALL МАРШРУТ (має бути ОСТАННІМ перед listen)
+// ==========================================
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// ==========================================
+// ЗАПУСК СЕРВЕРА
+// ==========================================
 app.listen(PORT, () => {
   console.log('');
   console.log('===========================================');
   console.log('  CorpLinks сервер запущено!');
-  console.log('  Відкрий браузер: http://localhost:3000');
+  console.log(`  Відкрий браузер: http://localhost:${PORT}`);
   console.log('===========================================');
   console.log('');
 });
-// ... другие импорты
-const ticketsRouter = require('./routes/tickets');
-
-// ...
-app.use('/api/tickets', ticketsRouter);

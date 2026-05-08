@@ -181,14 +181,15 @@ const db = {
   },
 
   // ==========================================
-  // НОВІ ФУНКЦІЇ ДЛЯ IT-ЗАЯВОК (HELPDESK)
+  // ФУНКЦІЇ ДЛЯ IT-ЗАЯВОК (HELPDESK)
   // ==========================================
   getTickets() {
-    return load().tickets;
+    return load().tickets || [];
   },
 
   createTicket({ title, cat, priority, desc, author, authorId, dept }) {
     const data = load();
+    if (!data.tickets) data.tickets = [];
     const ticket = { 
       id: nextId(data, 'tickets'), 
       title, 
@@ -208,6 +209,7 @@ const db = {
 
   updateTicketStatus(id, status) {
     const data = load();
+    if (!data.tickets) data.tickets = [];
     const idx = data.tickets.findIndex(t => t.id === Number(id));
     if (idx === -1) throw new Error('Заявку не знайдено');
     
@@ -218,6 +220,7 @@ const db = {
 
   deleteTicket(id) {
     const data = load();
+    if (!data.tickets) data.tickets = [];
     const ticket = data.tickets.find(t => t.id === Number(id));
     if (!ticket) throw new Error('Заявку не знайдено');
     

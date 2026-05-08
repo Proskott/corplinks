@@ -446,6 +446,9 @@ async function submitTicket() {
     
     await loadTickets();
     renderTickets();
+    if (document.getElementById('page-admin').classList.contains('active')) {
+      renderAllTickets();
+    }
   } catch (e) { 
     showToast('Помилка: ' + e.message, true); 
   }
@@ -458,7 +461,7 @@ function renderTickets() {
   var isIT     = state.currentUser.dept === 'IT';
 
   // ВСІ користувачі бачать ВСІ заявки
-  var tickets = state.tickets;
+  var tickets = state.tickets || [];
 
   if (filter) {
     tickets = tickets.filter(function(t) { return t.status === filter; });
@@ -530,7 +533,7 @@ async function deleteTicket(id) {
 function renderAllTickets() {
   var el = document.getElementById('allTicketsList');
   if (!el) return;
-  if (!state.tickets.length) {
+  if (!state.tickets || !state.tickets.length) {
     el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">Заявок ще не було</div>';
     return;
   }
@@ -726,13 +729,16 @@ async function deleteUser(id) {
 async function loadStats() {
   try {
     var s = await api('GET', '/stats');
+    var totalTickets = state.tickets ? state.tickets.length : 0;
+    var inProgressTickets = state.tickets ? state.tickets.filter(function(t){ return t.status==='inprogress'; }).length : 0;
+    
     document.getElementById('statsCards').innerHTML = [
       ['Ресурсів у базі',            s.totalResources, '#0284c7'],
       ['Зареєстрованих працівників', s.totalUsers,     '#059669'],
       ['Адміністраторів',            s.adminCount,     '#7c3aed'],
       ['Керівників',                 s.managerCount,   '#d97706'],
-      ['IT-заявок всього',           state.tickets.length, '#dc2626'],
-      ['Заявок в роботі',            state.tickets.filter(function(t){ return t.status==='inprogress'; }).length, '#ca8a04'],
+      ['IT-заявок всього',           totalTickets,     '#dc2626'],
+      ['Заявок в роботі',            inProgressTickets,'#ca8a04'],
     ].map(function(item) {
       return '<div class="stat-card" style="border-left-color:' + item[2] + '">' +
         '<div class="num">' + item[1] + '</div>' +
@@ -810,4 +816,4 @@ document.addEventListener('DOMContentLoaded', async function() {
       sessionStorage.removeItem('wl_session');
     }
   }
-}); 
+});
