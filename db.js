@@ -3,10 +3,8 @@ const mongoose = require('mongoose');
 const MONGO_URI = "mongodb+srv://kott:24861980qwerty@cluster0.dowxxbi.mongodb.net/corplinks?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
-  .then(() => console.log('✅ Connected to MongoDB Atlas'))
-  .catch(err => console.error('❌ Connection Error:', err));
-
-// --- СХЕМИ ---
+  .then(() => console.log('Connected to MongoDB Atlas'))
+  .catch(err => console.error('Connection Error:', err));
 
 var userSchema = new mongoose.Schema({
   name: String, email: String, dept: String, role: String,
@@ -26,28 +24,24 @@ var resourceSchema = new mongoose.Schema({
 var accountingSchema = new mongoose.Schema({
   title: String, amount: String, description: String, created_at: String
 });
-
-// Оновлена схема контрагентів для менеджерів (додано тип документа та суму)
 var contractorSchema = new mongoose.Schema({
-  company: String, 
-  phone: String, 
-  service: String, 
-  docType: String, // 'general', 'salary', 'sales'
-  amount: String, 
-  created_at: String
+  company: String, phone: String, service: String,
+  docType: String, amount: String, created_at: String
 });
-
-// Нова схема для HR-відділу
 var hrSchema = new mongoose.Schema({
   title: String, url: String, description: String, created_at: String
 });
-
-// Нова схема для контактів компанії
 var contactSchema = new mongoose.Schema({
   name: String, position: String, phone: String, email: String, created_at: String
 });
 
-// --- МОДЕЛІ ---
+// ВАРІАНТ 1: Схема кліків — відстежує використання ресурсів
+var clickSchema = new mongoose.Schema({
+  userId: String,
+  resourceId: String,
+  userDept: String,
+  timestamp: { type: Date, default: Date.now }
+});
 
 var User = mongoose.model('User', userSchema);
 var Ticket = mongoose.model('Ticket', ticketSchema);
@@ -57,17 +51,16 @@ var Accounting = mongoose.model('Accounting', accountingSchema);
 var Contractor = mongoose.model('Contractor', contractorSchema);
 var HR = mongoose.model('HR', hrSchema);
 var Contact = mongoose.model('Contact', contactSchema);
+var Click = mongoose.model('Click', clickSchema);
 
 var db = {
 
-  // --- АВТОРИЗАЦІЯ ---
   async loginUser(email, password) {
     var user = await User.findOne({ email: email.toLowerCase().trim(), password: password });
     if (!user) throw new Error('Невірний email або пароль');
     return user;
   },
 
-  // --- КОРИСТУВАЧІ ---
   async getUsers() { return await User.find().sort({ name: 1 }); },
 
   async createUser(data) {
@@ -92,11 +85,26 @@ var db = {
   async deleteUser(mongoId) {
     var user = await User.findByIdAndDelete(mongoId);
     if (!user) throw new Error('Не знайдено');
+    await Click.deleteMany({ userId: mongoId });
     return user;
   },
 
-  // --- РЕСУРСИ ---
+  // ВАРІАНТ 2: Ресурси з адаптивним доступом
   async getResources() { return await Resource.find().sort({ _id: -1 }); },
+
+  async getResourcesForUser(userId) {
+    var user = await User.findById(userId);
+    var allResources = await Resource.find().sort({ _id: -1 });
+    if (!user) return allResources;
+    if (user.role === 'admin') return allResources;
+    return allResources.filter(function(r) {
+      var access = (r.access || 'ALL').toString();
+      if (access === 'ALL') return true;
+      if (access.indexOf(user.dept) !== -1) return true;
+      if (user.role === 'manager' && access.indexOf('Management') !== -1) return true;
+      return false;
+    });
+  },
 
   async createResource(data) {
     return await new Resource({
@@ -107,17 +115,72 @@ var db = {
 
   async updateResource(mongoId, data) {
     var res = await Resource.findByIdAndUpdate(mongoId, {
-      name: data.name, url: data.url, cat: data.cat, desc: data.desc
+      name: data.name, url: data.url, cat: data.cat, desc: data.desc, access: data.access
     }, { new: true });
     if (!res) throw new Error('Ресурс не знайдено');
     return res;
   },
 
   async deleteResource(mongoId) {
+    await Click.deleteMany({ resourceId: mongoId });
     return await Resource.findByIdAndDelete(mongoId);
   },
 
-  // --- ЗАЯВКИ ---
+  // ВАРІАНТ 1: Трекінг кліків та рекомендації
+  async trackClick(userId, resourceId, userDept) {
+    await new Click({ userId: userId, resourceId: resourceId, userDept: userDept }).save();
+  },
+
+  async getFrequentForUser(userId) {
+    return await Click.aggregate([
+      { $match: { userId: userId } },
+      { $group: { _id: '$resourceId', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 }
+    ]);
+  },
+
+  async getPopularInDept(dept) {
+    return await Click.aggregate([
+      { $match: { userDept: dept } },
+      { $group: { _id: '$resourceId', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 }
+    ]);
+  },
+
+  async getRecommendations(userId) {
+    var user = await User.findById(userId);
+    if (!user) return { personal: [], department: [], userDept: '' };
+
+    var personal = await this.getFrequentForUser(userId);
+    var department = await this.getPopularInDept(user.dept);
+
+    var allIds = [];
+    personal.forEach(function(p) { allIds.push(p._id); });
+    department.forEach(function(d) { allIds.push(d._id); });
+
+    var resources = await Resource.find({ _id: { $in: allIds } });
+    var resMap = {};
+    resources.forEach(function(r) { resMap[r._id.toString()] = r; });
+
+    var personalIds = personal.map(function(p) { return p._id; });
+
+    var personalFull = personal.map(function(p) {
+      var r = resMap[p._id];
+      return r ? { resource: r, clicks: p.count } : null;
+    }).filter(Boolean);
+
+    var departmentFull = department.filter(function(d) {
+      return personalIds.indexOf(d._id) === -1;
+    }).map(function(d) {
+      var r = resMap[d._id];
+      return r ? { resource: r, clicks: d.count } : null;
+    }).filter(Boolean);
+
+    return { personal: personalFull, department: departmentFull, userDept: user.dept };
+  },
+
   async getTickets() { return await Ticket.find().sort({ _id: -1 }); },
 
   async createTicket(data) {
@@ -133,92 +196,59 @@ var db = {
     return await Ticket.findByIdAndUpdate(mongoId, { status: status }, { new: true });
   },
 
-  async deleteTicket(mongoId) {
-    return await Ticket.findByIdAndDelete(mongoId);
-  },
+  async deleteTicket(mongoId) { return await Ticket.findByIdAndDelete(mongoId); },
 
-  // --- БУХГАЛТЕРІЯ ---
   async getAccounting() { return await Accounting.find().sort({ _id: -1 }); },
-
   async createAccounting(data) {
     return await new Accounting({
-      title: data.title, amount: data.amount,
-      description: data.description || '',
+      title: data.title, amount: data.amount, description: data.description || '',
       created_at: new Date().toLocaleString('uk-UA')
     }).save();
   },
+  async deleteAccounting(mongoId) { return await Accounting.findByIdAndDelete(mongoId); },
 
-  async deleteAccounting(mongoId) {
-    return await Accounting.findByIdAndDelete(mongoId);
-  },
-
-  // --- КОНТРАГЕНТИ (Оновлено) ---
   async getContractors() { return await Contractor.find().sort({ company: 1 }); },
-
   async createContractor(data) {
     return await new Contractor({
-      company: data.company, 
-      phone: data.phone,
-      service: data.service || '',
-      docType: data.docType || 'general',
-      amount: data.amount || '',
+      company: data.company, phone: data.phone, service: data.service || '',
+      docType: data.docType || 'general', amount: data.amount || '',
       created_at: new Date().toLocaleString('uk-UA')
     }).save();
   },
+  async deleteContractor(mongoId) { return await Contractor.findByIdAndDelete(mongoId); },
 
-  async deleteContractor(mongoId) {
-    return await Contractor.findByIdAndDelete(mongoId);
-  },
-
-  // --- HR ВІДДІЛ (Нове) ---
   async getHR() { return await HR.find().sort({ _id: -1 }); },
-
   async createHR(data) {
     return await new HR({
-      title: data.title, url: data.url,
-      description: data.description || '',
+      title: data.title, url: data.url, description: data.description || '',
       created_at: new Date().toLocaleString('uk-UA')
     }).save();
   },
-
   async deleteHR(mongoId) { return await HR.findByIdAndDelete(mongoId); },
 
-  // --- КОНТАКТИ КОМПАНІЇ (Нове) ---
   async getContacts() { return await Contact.find().sort({ name: 1 }); },
-
   async createContact(data) {
     return await new Contact({
-      name: data.name, position: data.position,
-      phone: data.phone, email: data.email,
+      name: data.name, position: data.position, phone: data.phone, email: data.email,
       created_at: new Date().toLocaleString('uk-UA')
     }).save();
   },
-
   async deleteContact(mongoId) { return await Contact.findByIdAndDelete(mongoId); },
 
-  // --- ЖУРНАЛ ---
   async getLogs() { return await Log.find().sort({ _id: -1 }).limit(100); },
-
   async addLog(action, userName) {
-    await new Log({
-      action: action, user_name: userName || 'Система',
-      created_at: new Date().toLocaleString('uk-UA')
-    }).save();
+    await new Log({ action: action, user_name: userName || 'Система', created_at: new Date().toLocaleString('uk-UA') }).save();
   },
 
-  // --- СТАТИСТИКА ---
   async getStats() {
     var results = await Promise.all([
-      User.countDocuments(),
-      Resource.countDocuments(),
-      Ticket.countDocuments(),
-      User.countDocuments({ role: 'admin' }),
-      User.countDocuments({ role: 'manager' })
+      User.countDocuments(), Resource.countDocuments(), Ticket.countDocuments(),
+      User.countDocuments({ role: 'admin' }), User.countDocuments({ role: 'manager' }),
+      Click.countDocuments()
     ]);
     return {
-      totalUsers: results[0], totalResources: results[1],
-      totalTickets: results[2], adminCount: results[3],
-      managerCount: results[4]
+      totalUsers: results[0], totalResources: results[1], totalTickets: results[2],
+      adminCount: results[3], managerCount: results[4], totalClicks: results[5]
     };
   }
 };

@@ -9,9 +9,9 @@ var state = {
 var CAT_LABELS = { development: 'Розробка', design: 'Дизайн', management: 'Менеджмент', hr: 'HR', finance: 'Фінанси' };
 var ROLE_LABELS = { admin: 'Адміністратор', manager: 'Менеджер', user: 'Співробітник', viewer: 'Стажер' };
 var ROLE_COLORS = { admin: '#fce4ec:#880e4f', manager: '#fff3e0:#e65100', user: '#e8f0fe:#1557b0', viewer: '#e8f5e9:#1b5e20' };
-var TICKET_CAT = { hardware: '🖥️ Обладнання', software: '💿 ПЗ', network: '🌐 Мережа', access: '🔑 Доступи', other: '📋 Інше' };
-var TICKET_PRIORITY = { low: {label:'🟢 Низький',color:'#16a34a'}, medium: {label:'🟡 Середній',color:'#ca8a04'}, high: {label:'🔴 Високий',color:'#dc2626'} };
-var TICKET_STATUS = { new: {label:'🆕 Нова',color:'#2563eb'}, inprogress: {label:'⚙️ В роботі',color:'#ca8a04'}, done: {label:'✅ Виконано',color:'#16a34a'} };
+var TICKET_CAT = { hardware: 'Обладнання', software: 'ПЗ', network: 'Мережа', access: 'Доступи', other: 'Інше' };
+var TICKET_PRIORITY = { low: {label:'Низький',color:'#16a34a'}, medium: {label:'Середній',color:'#ca8a04'}, high: {label:'Високий',color:'#dc2626'} };
+var TICKET_STATUS = { new: {label:'Нова',color:'#2563eb'}, inprogress: {label:'В роботі',color:'#ca8a04'}, done: {label:'Виконано',color:'#16a34a'} };
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function getInitials(n) { return (n||'??').trim().split(/\s+/).slice(0,2).map(function(w){return w[0]||'';}).join('').toUpperCase(); }
@@ -40,18 +40,22 @@ function api(method,endpoint,body) {
   });
 }
 
+function refreshIcons() {
+  setTimeout(function(){ if(window.lucide) lucide.createIcons(); }, 100);
+}
+
 // =====================================================
 // ТЕМА
 // =====================================================
 function toggleTheme() {
   var isDark=document.body.classList.toggle('dark');
   localStorage.setItem('wl_theme',isDark?'dark':'light');
-  document.getElementById('themeBtn').textContent=isDark?'☀️ Світла тема':'🌙 Темна тема';
+  document.getElementById('themeBtn').textContent=isDark?'Світла тема':'Темна тема';
 }
 function applyTheme() {
   if(localStorage.getItem('wl_theme')==='dark') {
     document.body.classList.add('dark');
-    var b=document.getElementById('themeBtn'); if(b) b.textContent='☀️ Світла тема';
+    var b=document.getElementById('themeBtn'); if(b) b.textContent='Світла тема';
   }
 }
 
@@ -95,36 +99,27 @@ function setupUI() {
   document.getElementById('currentUserProfile').innerHTML=
     '<div class="avatar">'+getInitials(u.name)+'</div>'+
     '<div><div style="font-weight:600;color:white">'+esc(u.name)+'</div>'+
-    '<div style="font-size:11px;color:#94a3b8">'+(ROLE_LABELS[u.role]||u.role)+' · '+u.dept+'</div></div>';
+    '<div style="font-size:11px;color:#94a3b8">'+(ROLE_LABELS[u.role]||u.role)+' / '+u.dept+'</div></div>';
 
   document.querySelectorAll('.admin-only').forEach(function(el){el.style.display=isAdmin?'':'none';});
   document.querySelectorAll('.manager-only').forEach(function(el){el.style.display=isManager?'':'none';});
 
   var dm=document.getElementById('deptModules'); if(dm) dm.style.display='block';
-  
-  // IT-ЗАЯВКИ: Доступно ВСІМ
   var it=document.getElementById('nb-it'); if(it) it.style.display='flex';
 
-  // Приховуємо специфічні вкладки перед перевіркою
   ['nb-finance','nb-sales','nb-hr'].forEach(function(id){
-    var e = document.getElementById(id); if(e) e.style.display = 'none'; 
+    var e=document.getElementById(id); if(e) e.style.display='none';
   });
 
   if(isAdmin){
     ['nb-finance','nb-sales','nb-hr'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display='flex';});
   } else {
-    if (u.dept === 'Finance') {
-      var f = document.getElementById('nb-finance'); if(f) f.style.display='flex';
-    }
-    if (u.dept === 'HR') {
-      var h = document.getElementById('nb-hr'); if(h) h.style.display='flex';
-    }
-    // Контрагенти: бачать Продажі, Бухгалтерія та Юристи
-    if (['Sales', 'Finance', 'Legal'].includes(u.dept)) {
-      var s = document.getElementById('nb-sales'); if(s) s.style.display='flex';
-    }
+    if(u.dept==='Finance'){var f=document.getElementById('nb-finance');if(f)f.style.display='flex';}
+    if(u.dept==='HR'){var h=document.getElementById('nb-hr');if(h)h.style.display='flex';}
+    if(['Sales','Finance','Legal'].indexOf(u.dept)!==-1){var s=document.getElementById('nb-sales');if(s)s.style.display='flex';}
   }
   applyTheme();
+  refreshIcons();
 }
 
 // =====================================================
@@ -144,7 +139,8 @@ function showPage(page) {
   if(page==='sales') loadContractors();
   if(page==='hr') loadHR();
   if(page==='contacts') loadContacts();
-  if(page==='admin') { loadUsers().then(function(){renderUsers(); loadTickets().then(function(){renderAllTickets();}); loadStats(); loadLogs();}); }
+  if(page==='admin') { loadUsers().then(function(){renderUsers();loadTickets().then(function(){renderAllTickets();});loadStats();loadLogs();}); }
+  refreshIcons();
 }
 
 function switchTab(tab) {
@@ -160,25 +156,32 @@ function switchTab(tab) {
 // РЕСУРСИ
 // =====================================================
 function loadResources() {
-  return api('GET','/resources').then(function(data){
+  var userId=state.currentUser?state.currentUser._id:'';
+  return api('GET','/resources?userId='+userId).then(function(data){
     state.resources=data;
-    renderStatBar();
+   renderStatBar();
     renderCatFilter();
     filterAndRender();
+    loadRecommendations();
   }).catch(function(){showToast('Помилка завантаження',true);});
 }
 
 function renderStatBar() {
   var c={}; state.resources.forEach(function(r){c[r.cat]=(c[r.cat]||0)+1;});
   var el=document.getElementById('statsBar'); if(!el) return;
-  el.innerHTML='<div class="stat-chip">Всього:<span>'+state.resources.length+'</span></div>'+
-    Object.keys(c).map(function(k){return '<div class="stat-chip">'+(CAT_LABELS[k]||k)+':<span>'+c[k]+'</span></div>';}).join('');
+  var accessNote=state.currentUser.role==='admin'
+    ?'<div class="stat-chip" style="background:#dcfce7;color:#166534;border-color:#86efac;">Повний доступ</div>'
+    :'<div class="stat-chip" style="background:#fef9c3;color:#854d0e;border-color:#fde047;">Фільтр: '+esc(state.currentUser.dept)+'</div>';
+  el.innerHTML='<div class="stat-chip">Доступно:<span>'+state.resources.length+'</span></div>'+
+    Object.keys(c).map(function(k){return '<div class="stat-chip">'+(CAT_LABELS[k]||k)+':<span>'+c[k]+'</span></div>';}).join('')+
+    accessNote;
 }
+
 
 function renderCatFilter() {
   var cats=[]; state.resources.forEach(function(r){if(cats.indexOf(r.cat)===-1)cats.push(r.cat);});
   var el=document.getElementById('catFilter'); if(!el) return;
-  el.innerHTML='<option value="">Всі</option>'+cats.map(function(c){return '<option value="'+c+'">'+(CAT_LABELS[c]||c)+'</option>';}).join('');
+  el.innerHTML='<option value="">Всі категорії</option>'+cats.map(function(c){return '<option value="'+c+'">'+(CAT_LABELS[c]||c)+'</option>';}).join('');
 }
 
 function filterAndRender() {
@@ -196,21 +199,38 @@ function filterAndRender() {
 function renderCards(data,id) {
   var g=document.getElementById(id); if(!g) return;
   var isMgr=state.currentUser&&(state.currentUser.role==='admin'||state.currentUser.role==='manager');
-  if(!data.length){g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)"><div style="font-size:40px;margin-bottom:12px">📂</div><div style="font-size:16px;font-weight:600">Ресурсів немає</div></div>';return;}
+  if(!data.length){
+    g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">'+
+      '<div style="font-size:16px;font-weight:600;margin-bottom:6px;">Ресурсів не знайдено</div>'+
+      '<div style="font-size:13px;">Спробуйте змінити фільтр або додайте новий ресурс</div></div>';
+    return;
+  }
   g.innerHTML=data.map(function(r){
-    var ab=(r.access&&r.access.toString()!=='ALL')?'<span class="access-badge">🔒 '+esc(r.access)+'</span>':'';
+    var ab=(r.access&&r.access.toString()!=='ALL')?'<span class="access-badge">'+esc(r.access)+'</span>':'';
     var desc=r.desc?'<p class="card-desc">'+esc(r.desc)+'</p>':'<p class="card-desc" style="color:#94a3b8;font-style:italic">Без опису</p>';
-    var ed=isMgr?'<button class="btn-icon" onclick="openEditRes(\''+r._id+'\')">✏️</button>':'';
-    var dl=isMgr?'<button class="btn-icon danger" onclick="deleteResource(\''+r._id+'\')">🗑️</button>':'';
+    var ed=isMgr?'<button class="btn-icon" onclick="openEditRes(\''+r._id+'\')">Змінити</button>':'';
+    var dl=isMgr?'<button class="btn-icon danger" onclick="deleteResource(\''+r._id+'\')">Видалити</button>':'';
     return '<div class="card"><div class="card-header"><div><span class="card-title">'+esc(r.name)+'</span>'+ab+'</div>'+
       '<span class="badge">'+(CAT_LABELS[r.cat]||r.cat)+'</span></div>'+
-      '<a class="card-url" href="'+esc(r.url)+'" target="_blank">'+esc(r.url)+'</a>'+desc+
+     '<a class="card-url" href="'+esc(r.url)+'" target="_blank" onclick="trackClick(\''+r._id+'\')">'+esc(r.url)+'</a>'+desc+
       '<div class="card-actions">'+ed+dl+'</div></div>';
   }).join('');
 }
 
 function renderMyResources() {
-  renderCards(state.resources.filter(function(r){return r.mine;}),'myGrid');
+  if(!state.currentUser) return;
+  api('GET','/resources/recommendations/'+state.currentUser._id).then(function(data){
+    var g=document.getElementById('myGrid'); if(!g) return;
+    var personal=data.personal||[];
+    if(personal.length>0){
+      var mine=personal.map(function(p){return p.resource;});
+      renderCards(mine,'myGrid');
+    } else {
+      g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">'+
+        '<div style="font-size:15px;font-weight:600;">Натискайте на ресурси — вони з\'являться тут автоматично</div>'+
+        '<div style="font-size:13px;margin-top:6px;">Система формує персональний набір на основі вашої активності</div></div>';
+    }
+  }).catch(function(){});
 }
 
 function openResModal() {
@@ -226,7 +246,7 @@ function openEditRes(mongoId) {
   var r=state.resources.filter(function(x){return x._id===mongoId;})[0];
   if(!r) return;
   state.editResId=mongoId;
-  document.getElementById('resModalTitle').textContent='Редагувати';
+  document.getElementById('resModalTitle').textContent='Редагувати ресурс';
   document.getElementById('rName').value=r.name;
   document.getElementById('rUrl').value=r.url;
   document.getElementById('rCat').value=r.cat;
@@ -244,15 +264,15 @@ function saveResource() {
   var body={name:name,url:url,cat:cat,desc:desc,userName:state.currentUser.name};
   var promise=state.editResId?api('PUT','/resources/'+state.editResId,body):api('POST','/resources',body);
   promise.then(function(){
-    showToast(state.editResId?'✅ Оновлено':'✅ Додано');
+    showToast(state.editResId?'Ресурс оновлено':'Ресурс додано');
     closeModal('resOverlay'); loadResources();
-  }).catch(function(e){showToast('❌ '+e.message,true);});
+  }).catch(function(e){showToast(e.message,true);});
 }
 
 function deleteResource(mongoId) {
   if(!confirm('Видалити ресурс?')) return;
-  api('DELETE','/resources/'+mongoId).then(function(){showToast('🗑️ Видалено');loadResources();})
-  .catch(function(e){showToast('❌ '+e.message,true);});
+  api('DELETE','/resources/'+mongoId).then(function(){showToast('Ресурс видалено');loadResources();})
+  .catch(function(e){showToast(e.message,true);});
 }
 
 // =====================================================
@@ -267,16 +287,16 @@ function submitTicket() {
   var cat=document.getElementById('ticketCat').value;
   var priority=document.getElementById('ticketPriority').value;
   var desc=document.getElementById('ticketDesc').value.trim();
-  if(!title){showToast('Введіть тему',true);return;}
+  if(!title){showToast('Введіть тему заявки',true);return;}
   api('POST','/tickets',{title:title,cat:cat,priority:priority,desc:desc,author:state.currentUser.name,authorId:state.currentUser.id,dept:state.currentUser.dept})
   .then(function(){
     document.getElementById('ticketTitle').value='';
     document.getElementById('ticketDesc').value='';
     document.getElementById('ticketFormBlock').style.display='none';
-    showToast('📨 Заявку надіслано');
+    showToast('Заявку надіслано');
     return loadTickets();
   }).then(function(){renderTickets();})
-  .catch(function(e){showToast('❌ '+e.message,true);});
+  .catch(function(e){showToast(e.message,true);});
 }
 
 function renderTickets() {
@@ -285,25 +305,30 @@ function renderTickets() {
   var list=state.tickets;
   if(filter) list=list.filter(function(t){return t.status===filter;});
   var el=document.getElementById('ticketsList'); if(!el) return;
-  if(!list.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:36px;margin-bottom:10px">🎉</div><div style="font-size:15px;font-weight:600">Заявок немає</div></div>';return;}
+  if(!list.length){
+    el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted)">'+
+      '<div style="font-size:15px;font-weight:600;">Заявок немає</div>'+
+      '<div style="font-size:13px;margin-top:6px;">Все працює або заявки ще не створювались</div></div>';
+    return;
+  }
 
+  var isIT=state.currentUser.dept==='IT'||state.currentUser.role==='admin';
   el.innerHTML=list.slice().reverse().map(function(t){
     var pr=TICKET_PRIORITY[t.priority]||{label:t.priority,color:'#666'};
     var st=TICKET_STATUS[t.status]||{label:t.status,color:'#666'};
-    var isIT=state.currentUser.dept==='IT'||state.currentUser.role==='admin';
     var btns='';
     if(isIT){
-      if(t.status!=='inprogress') btns+='<button class="btn-icon" onclick="changeTicketStatus(\''+t._id+'\',\'inprogress\')">⚙️ В роботі</button>';
-      if(t.status!=='done') btns+='<button class="btn-icon" onclick="changeTicketStatus(\''+t._id+'\',\'done\')">✅ Виконано</button>';
-      btns+='<button class="btn-icon danger" onclick="deleteTicket(\''+t._id+'\')">🗑️</button>';
+      if(t.status!=='inprogress') btns+='<button class="btn-icon" onclick="changeTicketStatus(\''+t._id+'\',\'inprogress\')">В роботу</button>';
+      if(t.status!=='done') btns+='<button class="btn-icon" onclick="changeTicketStatus(\''+t._id+'\',\'done\')">Виконано</button>';
+      btns+='<button class="btn-icon danger" onclick="deleteTicket(\''+t._id+'\')">Видалити</button>';
     }
     return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px;margin-bottom:12px;">'+
       '<div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap;">'+
       '<div><div style="font-weight:600;font-size:14px;color:var(--text-main)">'+esc(t.title)+'</div>'+
-      '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">'+(TICKET_CAT[t.cat]||t.cat)+' · '+esc(t.author)+' · '+esc(t.createdAt)+'</div></div>'+
+      '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">'+(TICKET_CAT[t.cat]||t.cat)+' — '+esc(t.author)+' — '+esc(t.createdAt)+'</div></div>'+
       '<div style="display:flex;gap:6px;flex-shrink:0">'+
-      '<span style="font-size:11px;padding:3px 8px;border-radius:4px;font-weight:600;background:'+pr.color+'22;color:'+pr.color+'">'+pr.label+'</span>'+
-      '<span style="font-size:11px;padding:3px 8px;border-radius:4px;font-weight:600;background:'+st.color+'22;color:'+st.color+'">'+st.label+'</span>'+
+      '<span style="font-size:11px;padding:3px 8px;border-radius:4px;font-weight:600;background:'+pr.color+'18;color:'+pr.color+';border:1px solid '+pr.color+'33;">'+pr.label+'</span>'+
+      '<span style="font-size:11px;padding:3px 8px;border-radius:4px;font-weight:600;background:'+st.color+'18;color:'+st.color+';border:1px solid '+st.color+'33;">'+st.label+'</span>'+
       '</div></div>'+
       (t.desc?'<div style="font-size:13px;color:var(--text-muted);margin-bottom:10px">'+esc(t.desc)+'</div>':'')+
       (btns?'<div style="display:flex;gap:6px;flex-wrap:wrap">'+btns+'</div>':'')+
@@ -313,38 +338,104 @@ function renderTickets() {
 
 function changeTicketStatus(mongoId,status) {
   api('PUT','/tickets/'+mongoId+'/status',{status:status}).then(function(){
-    showToast('✅ Статус оновлено');
+    showToast('Статус оновлено');
     return loadTickets();
   }).then(function(){renderTickets();renderAllTickets();})
-  .catch(function(e){showToast('❌ '+e.message,true);});
+  .catch(function(e){showToast(e.message,true);});
 }
 
 function deleteTicket(mongoId) {
   if(!confirm('Видалити заявку?')) return;
   api('DELETE','/tickets/'+mongoId).then(function(){
-    showToast('🗑️ Видалено');
+    showToast('Заявку видалено');
     return loadTickets();
   }).then(function(){renderTickets();renderAllTickets();})
-  .catch(function(e){showToast('❌ '+e.message,true);});
+  .catch(function(e){showToast(e.message,true);});
 }
 
 function renderAllTickets() {
   var el=document.getElementById('allTicketsList'); if(!el) return;
-  if(!state.tickets.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted)">Заявок немає</div>';return;}
+  if(!state.tickets.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted)">Заявок поки немає</div>';return;}
   var rows=state.tickets.slice().reverse().map(function(t){
     var pr=TICKET_PRIORITY[t.priority]||{label:t.priority,color:'#666'};
     var st=TICKET_STATUS[t.status]||{label:t.status,color:'#666'};
     return '<tr><td><b>'+esc(t.title)+'</b><br><span style="font-size:11px;color:var(--text-muted)">'+esc(t.createdAt||'')+'</span></td>'+
       '<td>'+esc(t.author)+'</td>'+
-      '<td><span style="font-size:11px;padding:2px 7px;border-radius:4px;background:'+pr.color+'22;color:'+pr.color+';font-weight:600">'+pr.label+'</span></td>'+
-      '<td><select onchange="changeTicketStatus(\''+t._id+'\',this.value)" style="font-size:11px;padding:4px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text-main)">'+
-      '<option value="new"'+(t.status==='new'?' selected':'')+'>🆕 Нова</option>'+
-      '<option value="inprogress"'+(t.status==='inprogress'?' selected':'')+'>⚙️ В роботі</option>'+
-      '<option value="done"'+(t.status==='done'?' selected':'')+'>✅ Виконано</option></select>'+
-      ' <button class="btn-icon danger" onclick="deleteTicket(\''+t._id+'\')">🗑️</button></td></tr>';
+      '<td><span style="font-size:11px;padding:2px 7px;border-radius:4px;background:'+pr.color+'18;color:'+pr.color+';font-weight:600;border:1px solid '+pr.color+'33;">'+pr.label+'</span></td>'+
+      '<td><select onchange="changeTicketStatus(\''+t._id+'\',this.value)" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text-main)">'+
+      '<option value="new"'+(t.status==='new'?' selected':'')+'>Нова</option>'+
+      '<option value="inprogress"'+(t.status==='inprogress'?' selected':'')+'>В роботі</option>'+
+      '<option value="done"'+(t.status==='done'?' selected':'')+'>Виконано</option></select>'+
+      ' <button class="btn-icon danger" onclick="deleteTicket(\''+t._id+'\')">Видалити</button></td></tr>';
   }).join('');
-  el.innerHTML='<div class="table-wrap"><table class="data-table"><thead><tr><th>Тема</th><th>Від кого</th><th>Пріоритет</th><th>Статус</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  el.innerHTML='<div class="table-wrap"><table class="data-table"><thead><tr><th>Тема</th><th>Від кого</th><th>Пріоритет</th><th>Статус / Дії</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
+// =====================================================
+// ВАРІАНТ 1: ТРЕКІНГ КЛІКІВ ТА РЕКОМЕНДАЦІЇ
+// =====================================================
+function trackClick(resourceId) {
+  if(!state.currentUser) return;
+  api('POST','/resources/'+resourceId+'/click',{
+    userId: state.currentUser._id,
+    userDept: state.currentUser.dept
+  }).catch(function(){});
+}
+
+function loadRecommendations() {
+  if(!state.currentUser) return;
+  api('GET','/resources/recommendations/'+state.currentUser._id).then(function(data){
+    renderRecommendations(data);
+  }).catch(function(){});
+}
+
+function renderRecommendations(data) {
+  var el=document.getElementById('recommendationsBlock');
+  if(!el) return;
+
+  var personal=data.personal||[];
+  var department=data.department||[];
+
+  if(personal.length===0&&department.length===0){
+    el.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:20px;">'+
+      '<div style="font-size:13px;color:var(--text-muted);">Натискайте на посилання ресурсів — система запам\'ятає ваші вподобання та покаже персональні рекомендації тут.</div></div>';
+    return;
+  }
+
+  var html='';
+
+  if(personal.length>0){
+    html+='<div style="margin-bottom:16px;"><div style="font-size:13px;font-weight:600;color:var(--text-main);margin-bottom:8px;">Часто використовувані вами</div>';
+    html+='<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+    personal.forEach(function(item){
+      var r=item.resource;
+      html+='<a href="'+esc(r.url)+'" target="_blank" onclick="trackClick(\''+r._id+'\')" '+
+        'style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;text-decoration:none;color:var(--text-main);font-size:13px;transition:.15s;" '+
+        'onmouseover="this.style.borderColor=\'#2563eb\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+        '<div><div style="font-weight:600;">'+esc(r.name)+'</div>'+
+        '<div style="font-size:11px;color:var(--text-muted);">Використано '+item.clicks+' раз</div></div></a>';
+    });
+    html+='</div></div>';
+  }
+
+  if(department.length>0){
+    var deptName=data.userDept||'відділу';
+    html+='<div style="margin-bottom:16px;"><div style="font-size:13px;font-weight:600;color:var(--text-main);margin-bottom:8px;">Популярне у відділі '+esc(deptName)+'</div>';
+    html+='<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+    department.forEach(function(item){
+      var r=item.resource;
+      html+='<a href="'+esc(r.url)+'" target="_blank" onclick="trackClick(\''+r._id+'\')" '+
+        'style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;text-decoration:none;color:var(--text-main);font-size:13px;transition:.15s;" '+
+        'onmouseover="this.style.borderColor=\'#059669\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+        '<div><div style="font-weight:600;">'+esc(r.name)+'</div>'+
+        '<div style="font-size:11px;color:var(--text-muted);">Колеги використали '+item.clicks+' раз</div></div></a>';
+    });
+    html+='</div></div>';
+  }
+
+  el.innerHTML=html;
+}
+
+// =====================================================
 
 // =====================================================
 // БУХГАЛТЕРІЯ
@@ -355,28 +446,25 @@ function loadAccounting() {
 }
 
 function renderAccounting() {
-  var g = document.getElementById('financeGrid'); if (!g) return;
-  if (!state.accounting.length) {
-    g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)"><div style="font-size:36px;margin-bottom:10px">📎</div><div>Записів немає</div></div>';
+  var g=document.getElementById('financeGrid'); if(!g) return;
+  if(!state.accounting.length){
+    g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">'+
+      '<div style="font-size:15px;font-weight:600;">Записів поки немає</div></div>';
     return;
   }
-  g.innerHTML = state.accounting.map(function(item) {
-    var val = item.amount || '';
-    var isLink = val.trim().toLowerCase().indexOf('http') === 0 || val.trim().toLowerCase().indexOf('www') === 0;
-    
-    var contentHtml = isLink 
-      ? '<a class="card-url" href="' + esc(val) + '" target="_blank">' + esc(val) + '</a>'
-      : '<div style="font-size:18px; font-weight:bold; margin:8px 0;">💰 ' + esc(val) + ' грн</div>';
-
-    var descHtml = item.description 
-      ? '<p class="card-desc">' + esc(item.description) + '</p>' 
-      : '<p class="card-desc" style="color:#94a3b8;font-style:italic">Без опису</p>';
-
-    return '<div class="card" style="border-left:4px solid #059669">' +
-      '<div class="card-header"><span class="card-title">' + esc(item.title) + '</span></div>' +
-      contentHtml +
-      descHtml +
-      '<div class="card-actions"><button class="btn-icon danger" onclick="deleteAccounting(\'' + item._id + '\')">🗑️</button></div></div>';
+  g.innerHTML=state.accounting.map(function(item){
+    var val=item.amount||'';
+    var isLink=val.trim().toLowerCase().indexOf('http')===0||val.trim().toLowerCase().indexOf('www')===0;
+    var contentHtml=isLink
+      ?'<a class="card-url" href="'+esc(val)+'" target="_blank">'+esc(val)+'</a>'
+      :'<div style="font-size:18px;font-weight:bold;margin:8px 0;">'+esc(val)+' грн</div>';
+    var descHtml=item.description
+      ?'<p class="card-desc">'+esc(item.description)+'</p>'
+      :'<p class="card-desc" style="color:#94a3b8;font-style:italic">Без опису</p>';
+    return '<div class="card" style="border-left:4px solid #059669">'+
+      '<div class="card-header"><span class="card-title">'+esc(item.title)+'</span></div>'+
+      contentHtml+descHtml+
+      '<div class="card-actions"><button class="btn-icon danger" onclick="deleteAccounting(\''+item._id+'\')">Видалити</button></div></div>';
   }).join('');
 }
 
@@ -386,37 +474,39 @@ function submitDeptRes(access,prefix) {
   var desc=document.getElementById(prefix+'ResDesc').value.trim();
 
   if(access==='Finance') {
+    if(!name){showToast('Введіть назву',true);return;}
     api('POST','/accounting',{title:name,amount:url,description:desc}).then(function(){
       document.getElementById(prefix+'ResName').value='';
       document.getElementById(prefix+'ResUrl').value='';
       document.getElementById(prefix+'ResDesc').value='';
       document.getElementById('financeFormBlock').style.display='none';
-      showToast('✅ Додано'); loadAccounting();
-    }).catch(function(e){showToast('❌ '+e.message,true);});
+      showToast('Запис додано'); loadAccounting();
+    }).catch(function(e){showToast(e.message,true);});
   }
 
   if(access==='Sales') {
-    // Для менеджерів додаємо тип документа та суму
-    var docType = document.getElementById('salDocType') ? document.getElementById('salDocType').value : 'general';
-    var amount = document.getElementById('salAmount') ? document.getElementById('salAmount').value : '';
-    
+    if(!name){showToast('Введіть назву компанії',true);return;}
+    var docType=document.getElementById('salDocType')?document.getElementById('salDocType').value:'general';
+    var amount=document.getElementById('salAmount')?document.getElementById('salAmount').value:'';
     api('POST','/contractors',{company:name,phone:url,service:desc,docType:docType,amount:amount}).then(function(){
       document.getElementById(prefix+'ResName').value='';
       document.getElementById(prefix+'ResUrl').value='';
       document.getElementById(prefix+'ResDesc').value='';
+      if(document.getElementById('salAmount')) document.getElementById('salAmount').value='';
       document.getElementById('salesFormBlock').style.display='none';
-      showToast('✅ Додано'); loadContractors();
-    }).catch(function(e){showToast('❌ '+e.message,true);});
+      showToast('Контрагента додано'); loadContractors();
+    }).catch(function(e){showToast(e.message,true);});
   }
 
   if(access==='HR') {
+    if(!name){showToast('Введіть назву',true);return;}
     api('POST','/hr',{title:name,url:url,description:desc}).then(function(){
       document.getElementById(prefix+'ResName').value='';
       document.getElementById(prefix+'ResUrl').value='';
       document.getElementById(prefix+'ResDesc').value='';
       document.getElementById('hrFormBlock').style.display='none';
-      showToast('✅ Додано'); loadHR();
-    }).catch(function(e){showToast('❌ '+e.message,true);});
+      showToast('HR-ресурс додано'); loadHR();
+    }).catch(function(e){showToast(e.message,true);});
   }
 }
 
@@ -429,130 +519,121 @@ function loadContractors() {
 }
 
 function renderContractors() {
-  var g = document.getElementById('salesGrid'); if (!g) return;
-  if (!state.contractors.length) {
-    g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)"><div style="font-size:36px;margin-bottom:10px">📎</div><div>Контрагентів немає</div></div>';
+  var g=document.getElementById('salesGrid'); if(!g) return;
+  if(!state.contractors.length){
+    g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">'+
+      '<div style="font-size:15px;font-weight:600;">Контрагентів поки немає</div></div>';
     return;
   }
-  g.innerHTML = state.contractors.map(function(c) {
-    var isLink = (c.phone && c.phone.trim().indexOf('http') === 0);
-    var phoneHtml = isLink 
-      ? '<a class="card-url" href="' + esc(c.phone) + '" target="_blank">' + esc(c.phone) + '</a>'
-      : '<div style="font-size:13px; margin:5px 0">📞 ' + esc(c.phone) + '</div>';
-
-    // Відображення типу документа
-    var typeLabels = { salary: '💰 Зарплата', sales: '📈 Продажі', general: '📑 Загальне' };
-    var typeHtml = c.docType ? '<div style="font-size:11px; color:var(--primary); margin-top:5px; font-weight:600;">' + (typeLabels[c.docType] || c.docType) + '</div>' : '';
-    var amountHtml = c.amount ? '<div style="font-size:14px; font-weight:700; margin-top:5px;">' + esc(c.amount) + '</div>' : '';
-
-    return '<div class="card">' +
-      '<div class="card-header"><span class="card-title">' + esc(c.company) + '</span></div>' +
-      phoneHtml + typeHtml + amountHtml +
-      (c.service ? '<div style="font-size:12px; color:var(--text-muted); margin-top:8px; line-height:1.4;">' + esc(c.service) + '</div>' : '') +
-      '<div class="card-actions"><button class="btn-icon danger" onclick="deleteContractor(\'' + c._id + '\')">🗑️</button></div></div>';
+  g.innerHTML=state.contractors.map(function(c){
+    var isLink=(c.phone&&c.phone.trim().indexOf('http')===0);
+    var phoneHtml=isLink
+      ?'<a class="card-url" href="'+esc(c.phone)+'" target="_blank">'+esc(c.phone)+'</a>'
+      :'<div style="font-size:13px;margin:5px 0">Тел: '+esc(c.phone)+'</div>';
+    var typeLabels={salary:'Зарплата',sales:'Продажі',general:'Загальне'};
+    var typeHtml=c.docType?'<div style="font-size:11px;color:var(--primary);margin-top:5px;font-weight:600;">'+(typeLabels[c.docType]||c.docType)+'</div>':'';
+    var amountHtml=c.amount?'<div style="font-size:14px;font-weight:700;margin-top:5px;">'+esc(c.amount)+' грн</div>':'';
+    return '<div class="card">'+
+      '<div class="card-header"><span class="card-title">'+esc(c.company)+'</span></div>'+
+      phoneHtml+typeHtml+amountHtml+
+      (c.service?'<div style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.4;">'+esc(c.service)+'</div>':'')+
+      '<div class="card-actions"><button class="btn-icon danger" onclick="deleteContractor(\''+c._id+'\')">Видалити</button></div></div>';
   }).join('');
 }
 
 function deleteAccounting(mongoId) {
-  if(!confirm('Видалити?')) return;
-  api('DELETE','/accounting/'+mongoId).then(function(){showToast('🗑️ Видалено');loadAccounting();});
+  if(!confirm('Видалити запис?')) return;
+  api('DELETE','/accounting/'+mongoId).then(function(){showToast('Запис видалено');loadAccounting();});
 }
 
 function deleteContractor(mongoId) {
-  if(!confirm('Видалити?')) return;
-  api('DELETE','/contractors/'+mongoId).then(function(){showToast('🗑️ Видалено');loadContractors();});
+  if(!confirm('Видалити контрагента?')) return;
+  api('DELETE','/contractors/'+mongoId).then(function(){showToast('Контрагента видалено');loadContractors();});
 }
 
 // =====================================================
 // HR ВІДДІЛ
 // =====================================================
 function loadHR() {
-  return api('GET', '/hr').then(function(data) {
-    state.hr = data;
-    renderHR();
-  }).catch(function() { showToast('Помилка завантаження HR', true); });
+  return api('GET','/hr').then(function(data){
+    state.hr=data; renderHR();
+  }).catch(function(){showToast('Помилка завантаження HR',true);});
 }
 
 function renderHR() {
-  var g = document.getElementById('hrGrid'); if (!g) return;
-  if (!state.hr || !state.hr.length) {
-    g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)"><div style="font-size:36px;margin-bottom:10px">📎</div><div>Записів немає</div></div>';
+  var g=document.getElementById('hrGrid'); if(!g) return;
+  if(!state.hr||!state.hr.length){
+    g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">'+
+      '<div style="font-size:15px;font-weight:600;">HR-ресурсів поки немає</div></div>';
     return;
   }
-  g.innerHTML = state.hr.map(function(item) {
-    var val = item.url || '';
-    var isLink = val.trim().toLowerCase().indexOf('http') === 0 || val.trim().toLowerCase().indexOf('www') === 0;
-
-    var contentHtml = isLink 
-      ? '<a class="card-url" href="' + esc(val) + '" target="_blank">' + esc(val) + '</a>'
-      : '<div style="font-size:14px; font-weight:bold; margin:8px 0;">' + esc(val) + '</div>';
-
-    var descHtml = item.description 
-      ? '<p class="card-desc">' + esc(item.description) + '</p>' 
-      : '<p class="card-desc" style="color:#94a3b8;font-style:italic">Без опису</p>';
-
-    return '<div class="card" style="border-left:4px solid #db2777">' +
-      '<div class="card-header"><span class="card-title">' + esc(item.title) + '</span></div>' +
-      contentHtml + descHtml +
-      '<div class="card-actions"><button class="btn-icon danger" onclick="deleteHR(\'' + item._id + '\')">🗑️</button></div></div>';
+  g.innerHTML=state.hr.map(function(item){
+    var val=item.url||'';
+    var isLink=val.trim().toLowerCase().indexOf('http')===0||val.trim().toLowerCase().indexOf('www')===0;
+    var contentHtml=isLink
+      ?'<a class="card-url" href="'+esc(val)+'" target="_blank">'+esc(val)+'</a>'
+      :'<div style="font-size:14px;font-weight:bold;margin:8px 0;">'+esc(val)+'</div>';
+    var descHtml=item.description
+      ?'<p class="card-desc">'+esc(item.description)+'</p>'
+      :'<p class="card-desc" style="color:#94a3b8;font-style:italic">Без опису</p>';
+    return '<div class="card" style="border-left:4px solid #db2777">'+
+      '<div class="card-header"><span class="card-title">'+esc(item.title)+'</span></div>'+
+      contentHtml+descHtml+
+      '<div class="card-actions"><button class="btn-icon danger" onclick="deleteHR(\''+item._id+'\')">Видалити</button></div></div>';
   }).join('');
 }
 
 function deleteHR(mongoId) {
-  if (!confirm('Видалити?')) return;
-  api('DELETE', '/hr/' + mongoId).then(function() {
-    showToast('🗑️ Видалено');
-    loadHR();
-  });
+  if(!confirm('Видалити HR-ресурс?')) return;
+  api('DELETE','/hr/'+mongoId).then(function(){showToast('HR-ресурс видалено');loadHR();});
 }
 
 // =====================================================
 // КОНТАКТИ КОМПАНІЇ
 // =====================================================
 function loadContacts() {
-  return api('GET', '/contacts').then(function(data) {
-    state.contacts = data;
-    renderContacts();
-  }).catch(function() { showToast('Помилка контактів', true); });
+  return api('GET','/contacts').then(function(data){
+    state.contacts=data; renderContacts();
+  }).catch(function(){showToast('Помилка завантаження контактів',true);});
 }
 
 function renderContacts() {
-  var g = document.getElementById('contactsGrid'); if (!g) return;
-  if (!state.contacts || !state.contacts.length) {
-    g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">Список порожній</div>';
+  var g=document.getElementById('contactsGrid'); if(!g) return;
+  if(!state.contacts||!state.contacts.length){
+    g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">'+
+      '<div style="font-size:15px;font-weight:600;">Контактів поки немає</div></div>';
     return;
   }
-  g.innerHTML = state.contacts.map(function(c) {
-    return '<div class="card" style="border-left:4px solid var(--primary)">' +
-      '<div style="font-weight:700; font-size:15px;">' + esc(c.name) + '</div>' +
-      '<div style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">' + esc(c.position) + '</div>' +
-      '<div style="font-size:13px;">📞 ' + esc(c.phone) + '</div>' +
-      '<div style="font-size:13px;">✉️ ' + esc(c.email) + '</div>' +
-      '<div class="card-actions"><button class="btn-icon danger" onclick="deleteContact(\'' + c._id + '\')">🗑️</button></div></div>';
+  g.innerHTML=state.contacts.map(function(c){
+    return '<div class="card" style="border-left:4px solid var(--primary)">'+
+      '<div style="font-weight:700;font-size:15px;">'+esc(c.name)+'</div>'+
+      '<div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">'+esc(c.position)+'</div>'+
+      '<div style="font-size:13px;">Тел: '+esc(c.phone)+'</div>'+
+      '<div style="font-size:13px;">Email: '+esc(c.email)+'</div>'+
+      '<div class="card-actions"><button class="btn-icon danger" onclick="deleteContact(\''+c._id+'\')">Видалити</button></div></div>';
   }).join('');
 }
 
 function submitContact() {
-  var name = document.getElementById('conName').value.trim();
-  var pos = document.getElementById('conPos').value.trim();
-  var phone = document.getElementById('conPhone').value.trim();
-  var email = document.getElementById('conEmail').value.trim();
-  if(!name || !phone) return showToast('ПІБ та телефон обов\'язкові', true);
-
-  api('POST', '/contacts', { name:name, position:pos, phone:phone, email:email }).then(function() {
-    document.getElementById('conName').value = '';
-    document.getElementById('conPos').value = '';
-    document.getElementById('conPhone').value = '';
-    document.getElementById('conEmail').value = '';
+  var name=document.getElementById('conName').value.trim();
+  var pos=document.getElementById('conPos').value.trim();
+  var phone=document.getElementById('conPhone').value.trim();
+  var email=document.getElementById('conEmail').value.trim();
+  if(!name||!phone){showToast('ПІБ та телефон обов\'язкові',true);return;}
+  api('POST','/contacts',{name:name,position:pos,phone:phone,email:email}).then(function(){
+    document.getElementById('conName').value='';
+    document.getElementById('conPos').value='';
+    document.getElementById('conPhone').value='';
+    document.getElementById('conEmail').value='';
     toggleBlock('contactFormBlock');
-    showToast('✅ Контакт додано');
+    showToast('Контакт додано');
     loadContacts();
-  });
+  }).catch(function(e){showToast(e.message,true);});
 }
 
 function deleteContact(id) {
   if(!confirm('Видалити контакт?')) return;
-  api('DELETE', '/contacts/' + id).then(function() { showToast('🗑️ Видалено'); loadContacts(); });
+  api('DELETE','/contacts/'+id).then(function(){showToast('Контакт видалено');loadContacts();});
 }
 
 // =====================================================
@@ -562,16 +643,16 @@ function loadUsers() { return api('GET','/users').then(function(d){state.users=d
 
 function renderUsers() {
   var tb=document.getElementById('usersBody'); if(!tb) return;
-  if(!state.users.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-muted)">Порожньо</td></tr>';return;}
+  if(!state.users.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-muted)">Список порожній</td></tr>';return;}
   tb.innerHTML=state.users.map(function(u){
     var p=(ROLE_COLORS[u.role]||'#e2e8f0:#555').split(':');
     return '<tr><td><div style="display:flex;align-items:center;gap:10px"><div class="avatar" style="width:34px;height:34px;font-size:11px;flex-shrink:0">'+getInitials(u.name)+'</div>'+
       '<div><div style="font-weight:600;font-size:13px">'+esc(u.name)+'</div><div style="font-size:11px;color:var(--text-muted)">'+esc(u.email)+'</div></div></div></td>'+
       '<td style="color:var(--text-muted)">'+esc(u.email)+'</td>'+
       '<td><span style="background:#f1f5f9;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600">'+esc(u.dept)+'</span></td>'+
-      '<td><span class="role-badge" style="background:'+p[0]+';color:'+p[1]+'">'+( ROLE_LABELS[u.role]||u.role)+'</span></td>'+
-      '<td><button class="btn-icon" onclick="openEditUser(\''+u._id+'\')">✏️</button> '+
-      '<button class="btn-icon danger" onclick="deleteUser(\''+u._id+'\')">🗑️</button></td></tr>';
+      '<td><span class="role-badge" style="background:'+p[0]+';color:'+p[1]+'">'+(ROLE_LABELS[u.role]||u.role)+'</span></td>'+
+      '<td><button class="btn-icon" onclick="openEditUser(\''+u._id+'\')">Змінити</button> '+
+      '<button class="btn-icon danger" onclick="deleteUser(\''+u._id+'\')">Видалити</button></td></tr>';
   }).join('');
 }
 
@@ -589,7 +670,7 @@ function openUserModal() {
 function openEditUser(mongoId) {
   var u=state.users.filter(function(x){return x._id===mongoId;})[0]; if(!u) return;
   state.editUserId=mongoId;
-  document.getElementById('userModalTitle').textContent='Редагувати';
+  document.getElementById('userModalTitle').textContent='Редагувати працівника';
   document.getElementById('uName').value=u.name;
   document.getElementById('uEmail').value=u.email;
   document.getElementById('uDept').value=u.dept;
@@ -610,18 +691,18 @@ function saveUser() {
   var body={name:name,email:email,dept:dept,role:role,password:password};
   var promise=state.editUserId?api('PUT','/users/'+state.editUserId,body):api('POST','/users',body);
   promise.then(function(){
-    showToast(state.editUserId?'✅ Оновлено':'✅ Зареєстровано');
+    showToast(state.editUserId?'Дані оновлено':'Працівника зареєстровано');
     closeModal('userOverlay');
     return loadUsers();
   }).then(function(){renderUsers();loadStats();})
-  .catch(function(e){showToast('❌ '+e.message,true);});
+  .catch(function(e){showToast(e.message,true);});
 }
 
 function deleteUser(mongoId) {
-  if(!confirm('Видалити?')) return;
-  api('DELETE','/users/'+mongoId).then(function(){showToast('🗑️ Видалено');return loadUsers();})
+  if(!confirm('Видалити працівника?')) return;
+  api('DELETE','/users/'+mongoId).then(function(){showToast('Працівника видалено');return loadUsers();})
   .then(function(){renderUsers();loadStats();})
-  .catch(function(e){showToast('❌ '+e.message,true);});
+  .catch(function(e){showToast(e.message,true);});
 }
 
 // =====================================================
@@ -631,10 +712,11 @@ function loadStats() {
   return api('GET','/stats').then(function(s){
     var el=document.getElementById('statsCards'); if(!el) return;
     el.innerHTML=[
-      ['Ресурсів',s.totalResources,'#0284c7'],
-      ['Працівників',s.totalUsers,'#059669'],
-      ['Адмінів',s.adminCount||0,'#7c3aed'],
+      ['Ресурсів у базі',s.totalResources,'#0284c7'],
+      ['Зареєстрованих працівників',s.totalUsers,'#059669'],
+      ['Адміністраторів',s.adminCount||0,'#7c3aed'],
       ['Заявок IT',s.totalTickets||0,'#dc2626']
+      ['Переходів по ресурсах',s.totalClicks||0,'#8b5cf6']
     ].map(function(i){
       return '<div class="stat-card" style="border-left-color:'+i[2]+'"><div class="num">'+i[1]+'</div>'+
         '<div style="font-size:13px;color:var(--text-muted);margin-top:6px">'+i[0]+'</div></div>';
@@ -670,6 +752,7 @@ document.addEventListener('DOMContentLoaded',function(){
       document.getElementById('loginOverlay').style.display='none';
       document.getElementById('appContainer').style.display='flex';
       setupUI(); showPage('resources');
-    }catch(e){sessionStorage.removeItem('wl_session');}
+    }catch(ex){sessionStorage.removeItem('wl_session');}
   }
+  refreshIcons();
 });
