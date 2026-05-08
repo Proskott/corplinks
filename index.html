@@ -46,6 +46,7 @@
           <button class="nav-btn dept-tab" id="nb-it" onclick="showPage('it')" style="display:none;"><span class="icon">🖥️</span> IT-інфраструктура</button>
           <button class="nav-btn dept-tab" id="nb-finance" onclick="showPage('finance')" style="display:none;"><span class="icon">📊</span> Бухгалтерія</button>
           <button class="nav-btn dept-tab" id="nb-sales" onclick="showPage('sales')" style="display:none;"><span class="icon">🤝</span> Контрагенти</button>
+          <button class="nav-btn dept-tab" id="nb-hr" onclick="showPage('hr')" style="display:none;"><span class="icon">👥</span> HR-відділ</button>
         </div>
         <button class="nav-btn admin-only" id="nb-admin" onclick="showPage('admin')" style="margin-top:auto;"><span class="icon">⚙️</span> Адміністратор</button>
       </nav>
@@ -142,6 +143,24 @@
         <div class="cards-grid" id="salesGrid"></div>
       </section>
 
+      <section class="page" id="page-hr">
+        <header class="page-header">
+          <div><h1>HR-відділ</h1><p style="color:var(--text-muted);margin-top:4px;">Внутрішні політики, онбординг та документи</p></div>
+          <button class="btn-primary" onclick="toggleBlock('hrFormBlock')">+ Додати посилання</button>
+        </header>
+        <div id="hrFormBlock" class="form-block" style="display:none;">
+          <h3 style="margin-bottom:16px;font-size:16px;color:var(--text-main);">Новий HR-ресурс</h3>
+          <div class="form-group"><label>Назва *</label><input type="text" id="hrResName" placeholder="Політика відпусток" /></div>
+          <div class="form-group"><label>URL *</label><input type="url" id="hrResUrl" placeholder="https://..." /></div>
+          <div class="form-group"><label>Опис</label><textarea id="hrResDesc" rows="2" placeholder="Для чого використовується..."></textarea></div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button class="btn-cancel" onclick="toggleBlock('hrFormBlock')">Скасувати</button>
+            <button class="btn-primary" onclick="submitDeptRes('HR','hr')">💾 Зберегти</button>
+          </div>
+        </div>
+        <div class="cards-grid" id="hrGrid"></div>
+      </section>
+
       <section class="page" id="page-admin">
         <header class="page-header"><h1>Управління підприємством</h1></header>
         <div class="admin-tabs">
@@ -176,7 +195,7 @@
       <div class="form-group"><label>Опис</label><textarea id="rDesc" rows="2" placeholder="Для чого використовується..."></textarea></div>
       <div class="form-group"><label>Доступ</label>
         <select id="rAccess" multiple size="5" style="height:auto;padding:5px;">
-          <option value="ALL" selected>Всі працівники</option><option value="IT">IT-відділ</option><option value="Finance">Бухгалтерія</option><option value="Sales">Продажі</option><option value="Management">Керівництво</option>
+          <option value="ALL" selected>Всі працівники</option><option value="IT">IT-відділ</option><option value="Finance">Бухгалтерія</option><option value="Sales">Продажі</option><option value="HR">HR-відділ</option><option value="Management">Керівництво</option>
         </select>
       </div>
       <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('resOverlay')">Скасувати</button><button class="btn-primary" onclick="saveResource()">Зберегти</button></div>
