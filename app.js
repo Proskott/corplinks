@@ -128,31 +128,56 @@ function logout() {
 
 function setupUI() {
   const u = state.currentUser;
+  if (!u) return;
+
   const isAdmin = u.role === 'admin';
   const isManager = ['admin', 'manager'].includes(u.role);
 
-  document.getElementById('currentUserProfile').innerHTML = `
-    <div class="avatar">${getInitials(u.name)}</div>
-    <div>
-      <div style="font-size:13px;font-weight:600;color:white">${esc(u.name)}</div>
-      <div style="font-size:11px;color:#94a3b8">${ROLE_LABELS[u.role]} · ${u.dept}</div>
-    </div>`;
+  // Оновлюємо профіль у боковій панелі
+  const profileEl = document.getElementById('currentUserProfile');
+  if (profileEl) {
+    profileEl.innerHTML = `
+      <div class="avatar">${getInitials(u.name)}</div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:white">${esc(u.name)}</div>
+        <div style="font-size:11px;color:#94a3b8">${ROLE_LABELS[u.role]} · ${u.dept}</div>
+      </div>`;
+  }
 
-  document.querySelectorAll('.admin-only').forEach(el => el.style.display = isAdmin ? '' : 'none');
-  document.querySelectorAll('.manager-only').forEach(el => el.style.display = isManager ? '' : 'none');
-
-  // Навігація по відділах
-  const deptMap = { Finance: 'nb-finance', Sales: 'nb-sales', IT: 'nb-it' };
-  Object.values(deptMap).forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = isAdmin ? 'flex' : 'none';
+  // Показуємо/приховуємо елементи за класами
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = isAdmin ? '' : 'none';
   });
-  if (!isAdmin && deptMap[u.dept]) {
+  document.querySelectorAll('.manager-only').forEach(el => {
+    el.style.display = isManager ? '' : 'none';
+  });
+
+  // Логіка показу кнопок відділів
+  // 1. IT видно всім
+  const itBtn = document.getElementById('nb-it');
+  if (itBtn) itBtn.style.display = 'flex';
+
+  // 2. Спеціальні відділи (Бухгалтерія та Контрагенти)
+  const deptMap = { Finance: 'nb-finance', Sales: 'nb-sales' };
+  
+  // Якщо ти адмін — показуємо все
+  if (isAdmin) {
+    Object.values(deptMap).forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'flex';
+    });
+    // Показуємо кнопку Адмін-панелі
+    const adminBtn = document.getElementById('nb-admin');
+    if (adminBtn) adminBtn.style.display = 'flex';
+  } else {
+    // Якщо не адмін — показуємо тільки свій відділ
+    if (deptMap[u.dept]) {
       const el = document.getElementById(deptMap[u.dept]);
       if (el) el.style.display = 'flex';
+    }
   }
-  // IT завжди бачать всі
-  document.getElementById('nb-it').style.display = 'flex';
+
+  applyTheme();
 }
 
 // =====================================================
