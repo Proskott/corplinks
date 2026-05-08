@@ -166,4 +166,8 @@ select[multiple] option:checked { background:#e0f2fe; color:var(--primary); font
 @media(max-width:380px) {
   .main-content { padding:70px 10px 20px 10px; }
   .stats-cards { grid-template-columns:1fr; }
+  /* Lucide іконки у сайдбарі */
+.nav-icon { width:18px; height:18px; stroke-width:1.8; flex-shrink:0; opacity:.7; }
+.nav-btn.active .nav-icon { opacity:1; }
+.nav-btn:hover .nav-icon { opacity:1; }
 }
