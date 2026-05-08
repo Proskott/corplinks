@@ -338,15 +338,25 @@ function loadAccounting() {
 }
 
 function renderAccounting() {
-  var g=document.getElementById('financeGrid'); if(!g) return;
-  if(!state.accounting.length){g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)"><div style="font-size:36px;margin-bottom:10px">📎</div><div>Записів немає</div></div>';return;}
-  g.innerHTML=state.accounting.map(function(item){
-    return '<div class="card" style="border-left:4px solid #059669"><div class="card-title">'+esc(item.title)+'</div>'+
-      '<div style="font-size:18px;font-weight:bold;margin:8px 0;">'+item.amount+' грн</div>'+
-      '<div class="card-actions"><button class="btn-icon danger" onclick="deleteAccounting(\''+item._id+'\')">🗑️</button></div></div>';
+  var g = document.getElementById('financeGrid'); if (!g) return;
+  if (!state.accounting.length) {
+    g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)"><div style="font-size:36px;margin-bottom:10px">📎</div><div>Записів немає</div></div>';
+    return;
+  }
+  g.innerHTML = state.accounting.map(function(item) {
+    // Проверяем, является ли описание ссылкой
+    var isLink = (item.description && item.description.trim().indexOf('http') === 0);
+    var descHtml = isLink 
+      ? '<a class="card-url" href="'+esc(item.description)+'" target="_blank">'+esc(item.description)+'</a>'
+      : (item.description ? '<p class="card-desc">' + esc(item.description) + '</p>' : '');
+
+    return '<div class="card" style="border-left:4px solid #059669">' +
+      '<div class="card-header"><span class="card-title">' + esc(item.title) + '</span></div>' +
+      '<div style="font-size:18px; font-weight:700; color:var(--text-main); margin: 10px 0;">💰 ' + esc(item.amount) + '</div>' +
+      descHtml +
+      '<div class="card-actions"><button class="btn-icon danger" onclick="deleteAccounting(\'' + item._id + '\')">🗑️</button></div></div>';
   }).join('');
 }
-
 function submitDeptRes(access,prefix) {
   var name=document.getElementById(prefix+'ResName').value.trim();
   var url=document.getElementById(prefix+'ResUrl').value.trim();
@@ -382,13 +392,23 @@ function loadContractors() {
 }
 
 function renderContractors() {
-  var g=document.getElementById('salesGrid'); if(!g) return;
-  if(!state.contractors.length){g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)"><div style="font-size:36px;margin-bottom:10px">📎</div><div>Контрагентів немає</div></div>';return;}
-  g.innerHTML=state.contractors.map(function(c){
-    return '<div class="card"><div class="card-title">'+esc(c.company)+'</div>'+
-      '<div style="font-size:13px;margin:5px 0">📞 '+esc(c.phone)+'</div>'+
-      (c.service?'<div style="font-size:12px;color:var(--text-muted)">'+esc(c.service)+'</div>':'')+
-      '<div class="card-actions"><button class="btn-icon danger" onclick="deleteContractor(\''+c._id+'\')">🗑️</button></div></div>';
+  var g = document.getElementById('salesGrid'); if (!g) return;
+  if (!state.contractors.length) {
+    g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)"><div style="font-size:36px;margin-bottom:10px">📎</div><div>Контрагентів немає</div></div>';
+    return;
+  }
+  g.innerHTML = state.contractors.map(function(c) {
+    // Если в поле phone введена ссылка, делаем её красивой
+    var isLink = (c.phone && c.phone.trim().indexOf('http') === 0);
+    var phoneHtml = isLink 
+      ? '<a class="card-url" href="' + esc(c.phone) + '" target="_blank">' + esc(c.phone) + '</a>'
+      : '<div style="font-size:13px; margin:5px 0">📞 ' + esc(c.phone) + '</div>';
+
+    return '<div class="card">' +
+      '<div class="card-header"><span class="card-title">' + esc(c.company) + '</span></div>' +
+      phoneHtml +
+      (c.service ? '<div style="font-size:12px; color:var(--text-muted); margin-top:8px; line-height:1.4;">' + esc(c.service) + '</div>' : '') +
+      '<div class="card-actions"><button class="btn-icon danger" onclick="deleteContractor(\'' + c._id + '\')">🗑️</button></div></div>';
   }).join('');
 }
 
