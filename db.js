@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 
-// ВСТАВ СВІЙ ПАРОЛЬ НИЖЧЕ
 const MONGO_URI = "mongodb+srv://kott:24861980qwerty@cluster0.dowxxbi.mongodb.net/corplinks?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
@@ -14,23 +13,14 @@ mongoose.connect(MONGO_URI)
 const userSchema = new mongoose.Schema({
   id: Number, name: String, email: String, dept: String, role: String, password: { type: String, select: true }, created_at: String
 });
-
 const ticketSchema = new mongoose.Schema({
   id: Number, title: String, cat: String, priority: String, desc: String, status: String, author: String, authorId: Number, dept: String, createdAt: String
 });
-
 const logSchema = new mongoose.Schema({
   id: Number, action: String, user_name: String, created_at: String
 });
-
 const resourceSchema = new mongoose.Schema({
-  id: Number, 
-  name: String, 
-  url: String, 
-  cat: String, 
-  desc: String, 
-  access: [String], // <--- ЗМІНЕНО НА МАСИВ [String], щоб не було помилки валідації
-  created_at: String
+  id: Number, name: String, url: String, cat: String, desc: String, access: [String], created_at: String
 });
 
 const User = mongoose.model('User', userSchema);
@@ -38,7 +28,6 @@ const Ticket = mongoose.model('Ticket', ticketSchema);
 const Log = mongoose.model('Log', logSchema);
 const Resource = mongoose.model('Resource', resourceSchema);
 
-// Функція початкового заповнення
 async function seedDatabase() {
   const userCount = await User.countDocuments();
   if (userCount === 0) {
@@ -61,6 +50,9 @@ const db = {
     const count = await User.countDocuments();
     const user = new User({ ...data, id: count + 1, created_at: new Date().toLocaleString() });
     return await user.save();
+  },
+  async deleteUser(id) { // НОВА ФУНКЦІЯ
+    return await User.findOneAndDelete({ id: Number(id) });
   },
   async getTickets() { return await Ticket.find(); },
   async createTicket(data) {
@@ -90,13 +82,7 @@ const db = {
   },
   async getStats() {
     const [u, r, t] = await Promise.all([User.countDocuments(), Resource.countDocuments(), Ticket.countDocuments()]);
-    return { 
-      totalUsers: u, 
-      totalResources: r, 
-      totalTickets: t, 
-      adminCount: await User.countDocuments({role:'admin'}), 
-      managerCount: await User.countDocuments({role:'manager'}) 
-    };
+    return { totalUsers: u, totalResources: r, totalTickets: t, adminCount: await User.countDocuments({role:'admin'}), managerCount: await User.countDocuments({role:'manager'}) };
   }
 };
 
