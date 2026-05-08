@@ -46,3 +46,8 @@ app.listen(PORT, () => {
   console.log('===========================================');
   console.log('');
 });
+// ... другие импорты
+const ticketsRouter = require('./routes/tickets');
+
+// ...
+app.use('/api/tickets', ticketsRouter);

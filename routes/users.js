@@ -1,22 +1,15 @@
 const express = require('express');
-const router  = express.Router();
+const router  = express.Rowter(); // Исправлено на router
 const db      = require('../db');
 
 router.get('/', (req, res) => {
   res.json(db.getUsers());
 });
 
-router.get('/:id', (req, res) => {
-  const user = db.getUserById(req.params.id);
-  if (!user) return res.status(404).json({ error: 'Не знайдено' });
-  res.json(user);
-});
-
 router.post('/', (req, res) => {
   try {
-    const { name, email, dept, role, password, adminName } = req.body;
-    const user = db.createUser({ name, email, dept, role, password });
-    db.addLog(`Зареєстровано працівника "${name}" (${role})`, adminName);
+    const user = db.createUser(req.body);
+    db.addLog(`Зарегистрирован сотрудник: ${user.name}`, req.body.adminName);
     res.json(user);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -25,9 +18,8 @@ router.post('/', (req, res) => {
 
 router.put('/:id', (req, res) => {
   try {
-    const { name, email, dept, role, password, adminName } = req.body;
-    const user = db.updateUser(req.params.id, { name, email, dept, role, password });
-    db.addLog(`Оновлено дані "${name}"`, adminName);
+    const user = db.updateUser(req.params.id, req.body);
+    db.addLog(`Обновлены данные сотрудника: ${user.name}`, req.body.adminName);
     res.json(user);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -36,9 +28,8 @@ router.put('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   try {
-    const { adminName } = req.body;
     const user = db.deleteUser(req.params.id);
-    db.addLog(`Видалено працівника "${user.name}"`, adminName);
+    db.addLog(`Удален сотрудник: ${user.name}`, req.body.adminName);
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: err.message });

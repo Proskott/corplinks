@@ -196,8 +196,13 @@ function setupUI() {
   });
 
   document.getElementById('deptModules').style.display = 'block';
-  const deptMap = { IT: 'nb-it', Finance: 'nb-finance', Sales: 'nb-sales' };
-  // Показуємо кнопку свого відділу
+  
+  // Робимо вкладку IT відкритою для всіх
+  const itBtn = document.getElementById('nb-it');
+  if (itBtn) itBtn.style.display = 'flex';
+
+  const deptMap = { Finance: 'nb-finance', Sales: 'nb-sales' };
+  // Показуємо кнопку свого відділу (для фінансів і продажів)
   if (deptMap[u.dept]) {
     const btn = document.getElementById(deptMap[u.dept]);
     if (btn) btn.style.display = 'flex';
@@ -210,9 +215,7 @@ function setupUI() {
     });
   }
 
-  // Завантажуємо заявки та ресурси відділів з localStorage
-  const savedT = localStorage.getItem('wl_tickets');
-  if (savedT) state.tickets = JSON.parse(savedT);
+  // Завантажуємо локальні ресурси відділів (якщо є)
   const savedD = localStorage.getItem('wl_dept_res');
   if (savedD) state.deptRes = JSON.parse(savedD);
 
@@ -223,7 +226,6 @@ function setupUI() {
 // ПЕРЕМИКАННЯ СТОРІНОК
 // =====================================================
 async function showPage(page) {
-  // Закриваємо мобільне меню при навігації
   closeSidebar();
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -234,10 +236,10 @@ async function showPage(page) {
 
   if (page === 'resources') await loadResources();
   if (page === 'my')        renderMyResources();
-  if (page === 'it')        renderTickets();
+  if (page === 'it')        { await loadTickets(); renderTickets(); }
   if (page === 'finance')   renderDeptRes('Finance');
   if (page === 'sales')     renderDeptRes('Sales');
-  if (page === 'admin')     { await loadUsers(); renderUsers(); await loadStats(); renderLogs(); renderAllTickets(); }
+  if (page === 'admin')     { await loadUsers(); renderUsers(); await loadTickets(); await loadStats(); renderLogs(); renderAllTickets(); }
 }
 
 // =====================================================
@@ -408,9 +410,17 @@ async function toggleMine(id) {
 }
 
 // =====================================================
-// IT-ЗАЯВКИ (HELPDESK)
+// IT-ЗАЯВКИ (HELPDESK) - СЕРВЕРНА ВЕРСІЯ
 // =====================================================
-function submitTicket() {
+async function loadTickets() {
+  try {
+    state.tickets = await api('GET', '/tickets');
+  } catch (e) {
+    console.error('Помилка завантаження заявок', e);
+  }
+}
+
+async function submitTicket() {
   var title    = document.getElementById('ticketTitle').value.trim();
   var cat      = document.getElementById('ticketCat').value;
   var priority = document.getElementById('ticketPriority').value;
@@ -418,37 +428,37 @@ function submitTicket() {
 
   if (!title) { showToast('Введіть тему заявки', true); return; }
 
-  state.tickets.push({
-    id:        Date.now(),
-    title:     title,
-    cat:       cat,
-    priority:  priority,
-    desc:      desc,
-    status:    'new',
-    author:    state.currentUser.name,
-    authorId:  state.currentUser.id,
-    dept:      state.currentUser.dept,
-    createdAt: new Date().toLocaleString('uk-UA')
-  });
-  localStorage.setItem('wl_tickets', JSON.stringify(state.tickets));
+  try {
+    await api('POST', '/tickets', {
+      title: title, 
+      cat: cat, 
+      priority: priority, 
+      desc: desc,
+      author: state.currentUser.name,
+      authorId: state.currentUser.id,
+      dept: state.currentUser.dept
+    });
 
-  document.getElementById('ticketTitle').value = '';
-  document.getElementById('ticketDesc').value  = '';
-  document.getElementById('ticketFormBlock').style.display = 'none';
-  showToast('📨 Заявку надіслано');
-  renderTickets();
+    document.getElementById('ticketTitle').value = '';
+    document.getElementById('ticketDesc').value  = '';
+    document.getElementById('ticketFormBlock').style.display = 'none';
+    showToast('📨 Заявку надіслано');
+    
+    await loadTickets();
+    renderTickets();
+  } catch (e) { 
+    showToast('Помилка: ' + e.message, true); 
+  }
 }
 
 function renderTickets() {
   var filterEl = document.getElementById('ticketFilter');
   var filter   = filterEl ? filterEl.value : '';
-  var userId   = state.currentUser.id;
   var isAdmin  = state.currentUser.role === 'admin';
   var isIT     = state.currentUser.dept === 'IT';
 
-  var tickets = (isAdmin || isIT)
-    ? state.tickets
-    : state.tickets.filter(function(t) { return t.authorId === userId; });
+  // ВСІ користувачі бачать ВСІ заявки
+  var tickets = state.tickets;
 
   if (filter) {
     tickets = tickets.filter(function(t) { return t.status === filter; });
@@ -466,6 +476,8 @@ function renderTickets() {
   el.innerHTML = tickets.slice().reverse().map(function(t) {
     var pr = TICKET_PRIORITY[t.priority] || { label: t.priority, color: '#666' };
     var st = TICKET_STATUS[t.status]     || { label: t.status,   color: '#666' };
+    
+    // Тільки IT та Адміни можуть змінювати статуси
     var canChange = isAdmin || isIT;
 
     var buttons = '';
@@ -490,23 +502,29 @@ function renderTickets() {
   }).join('');
 }
 
-function changeTicketStatus(id, status) {
-  for (var i = 0; i < state.tickets.length; i++) {
-    if (state.tickets[i].id === id) { state.tickets[i].status = status; break; }
+async function changeTicketStatus(id, status) {
+  try {
+    await api('PUT', '/tickets/' + id + '/status', { status: status });
+    showToast('✅ Статус оновлено');
+    await loadTickets();
+    renderTickets();
+    renderAllTickets();
+  } catch (e) { 
+    showToast('Помилка: ' + e.message, true); 
   }
-  localStorage.setItem('wl_tickets', JSON.stringify(state.tickets));
-  showToast('✅ Статус оновлено');
-  renderTickets();
-  renderAllTickets();
 }
 
-function deleteTicket(id) {
+async function deleteTicket(id) {
   if (!confirm('Видалити заявку?')) return;
-  state.tickets = state.tickets.filter(function(t) { return t.id !== id; });
-  localStorage.setItem('wl_tickets', JSON.stringify(state.tickets));
-  showToast('🗑️ Заявку видалено');
-  renderTickets();
-  renderAllTickets();
+  try {
+    await api('DELETE', '/tickets/' + id);
+    showToast('🗑️ Заявку видалено');
+    await loadTickets();
+    renderTickets();
+    renderAllTickets();
+  } catch (e) { 
+    showToast('Помилка: ' + e.message, true); 
+  }
 }
 
 function renderAllTickets() {
@@ -762,7 +780,7 @@ function overlayClick(event, overlayId) {
 // =====================================================
 // СТАРТ
 // =====================================================
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   applyTheme();
 
   var savedEmail = localStorage.getItem('wl_saved_email');
@@ -776,13 +794,17 @@ document.addEventListener('DOMContentLoaded', function() {
   if (session) {
     try {
       state.currentUser = JSON.parse(session);
-      var savedT = localStorage.getItem('wl_tickets');
-      if (savedT) state.tickets = JSON.parse(savedT);
+      
+      // Завантажуємо локальні ресурси відділів (якщо є)
       var savedD = localStorage.getItem('wl_dept_res');
       if (savedD) state.deptRes = JSON.parse(savedD);
+      
       document.getElementById('loginOverlay').style.display = 'none';
       document.getElementById('appContainer').style.display = 'flex';
       setupUI();
+      
+      // Переконуємось, що заявки підтягнуться з сервера одразу
+      await loadTickets();
       showPage('resources');
     } catch (e) {
       sessionStorage.removeItem('wl_session');

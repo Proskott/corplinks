@@ -24,7 +24,8 @@ const DEFAULT_DATA = {
   logs: [
     { id: 1, action: 'Систему ініціалізовано. Додано демо-дані.', user_name: 'Система', created_at: '2024-01-01 09:00:00' },
   ],
-  _counters: { users: 5, resources: 7, logs: 1 }
+  tickets: [],
+  _counters: { users: 5, resources: 7, logs: 1, tickets: 0 }
 };
 
 function load() {
@@ -177,6 +178,52 @@ const db = {
       byCategory: Object.entries(byCategory).map(([cat, count]) => ({ cat, count })),
       byRole: Object.entries(byRole).map(([role, count]) => ({ role, count })),
     };
+  },
+
+  // ==========================================
+  // НОВІ ФУНКЦІЇ ДЛЯ IT-ЗАЯВОК (HELPDESK)
+  // ==========================================
+  getTickets() {
+    return load().tickets;
+  },
+
+  createTicket({ title, cat, priority, desc, author, authorId, dept }) {
+    const data = load();
+    const ticket = { 
+      id: nextId(data, 'tickets'), 
+      title, 
+      cat, 
+      priority, 
+      desc: desc || '', 
+      status: 'new', 
+      author, 
+      authorId, 
+      dept, 
+      createdAt: now() 
+    };
+    data.tickets.push(ticket);
+    save(data);
+    return ticket;
+  },
+
+  updateTicketStatus(id, status) {
+    const data = load();
+    const idx = data.tickets.findIndex(t => t.id === Number(id));
+    if (idx === -1) throw new Error('Заявку не знайдено');
+    
+    data.tickets[idx].status = status;
+    save(data);
+    return data.tickets[idx];
+  },
+
+  deleteTicket(id) {
+    const data = load();
+    const ticket = data.tickets.find(t => t.id === Number(id));
+    if (!ticket) throw new Error('Заявку не знайдено');
+    
+    data.tickets = data.tickets.filter(t => t.id !== Number(id));
+    save(data);
+    return ticket;
   }
 };
 
