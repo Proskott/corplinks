@@ -810,4 +810,4 @@ document.addEventListener('DOMContentLoaded', async function() {
       sessionStorage.removeItem('wl_session');
     }
   }
-});
+}); 
