@@ -2,25 +2,21 @@ const express = require('express');
 const router  = express.Router();
 const db      = require('../db');
 
-router.get('/', async (req, res) => {
+router.get('/', async (req, res) => res.json(await db.getResources()));
+
+router.post('/', async (req, res) => {
   try {
-    const resources = await db.getResources();
-    res.json(resources);
+    const r = await db.createResource(req.body);
+    await db.addLog(`Додано ресурс: ${r.name}`, req.body.userName || 'Система');
+    res.json(r);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(400).json({ error: err.message });
   }
 });
 
-// Додавання ресурсів (якщо ти реалізував цю функцію в db.js)
-router.post('/', async (req, res) => {
-  try {
-    // Якщо в db.js є функція createResource, викликаємо її через await
-    // const newRes = await db.createResource(req.body);
-    // res.json(newRes);
-    res.json({ message: "Функція в розробці" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+router.delete('/:id', async (req, res) => {
+  await db.deleteResource(req.params.id);
+  res.json({ success: true });
 });
 
 module.exports = router;

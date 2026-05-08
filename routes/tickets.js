@@ -2,15 +2,12 @@ const express = require('express');
 const router  = express.Router();
 const db      = require('../db');
 
-router.get('/', async (req, res) => {
-  const tickets = await db.getTickets();
-  res.json(tickets);
-});
+router.get('/', async (req, res) => res.json(await db.getTickets()));
 
 router.post('/', async (req, res) => {
-  const ticket = await db.createTicket(req.body);
-  await db.addLog(`Створено IT-заявку: ${ticket.title}`, req.body.author);
-  res.json(ticket);
+  const t = await db.createTicket(req.body);
+  await db.addLog(`Нова заявка: ${t.title}`, req.body.author);
+  res.json(t);
 });
 
 router.put('/:id/status', async (req, res) => {

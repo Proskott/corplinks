@@ -1,12 +1,12 @@
 const mongoose = require('mongoose');
 
-// ВСТАВ СВІЙ ПАРОЛЬ НИЖЧЕ
+// ВСТАВ СВІЙ ПАРОЛЬ ЗАМІСТЬ <db_password>
 const MONGO_URI = "mongodb+srv://kott:24861980qwerty@cluster0.dowxxbi.mongodb.net/corplinks?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
   .then(() => {
     console.log('✅ Connected to MongoDB Atlas');
-    seedDatabase(); // Запуск авто-заповнення
+    seedDatabase(); 
   })
   .catch(err => console.error('❌ Connection Error:', err));
 
@@ -29,23 +29,21 @@ const Ticket = mongoose.model('Ticket', ticketSchema);
 const Log = mongoose.model('Log', logSchema);
 const Resource = mongoose.model('Resource', resourceSchema);
 
-// --- ФУНКЦІЯ АВТО-ЗАПОВНЕННЯ ---
+// Функція початкового заповнення
 async function seedDatabase() {
   const userCount = await User.countDocuments();
   if (userCount === 0) {
-    console.log('🌱 База порожня. Створюю початкових користувачів...');
     await User.insertMany([
-      { id: 1, name: 'Ходаківський Ігор Євгенійович', email: 'khodakivskyi@enterprise.com', dept: 'IT', role: 'admin', password: 'admin123', created_at: '2024-01-01 09:00:00' },
-      { id: 2, name: 'Петренко Олена Василівна', email: 'petrenko@enterprise.com', dept: 'Finance', role: 'manager', password: '1234', created_at: '2024-01-01 09:01:00' }
+      { id: 1, name: 'Ходаківський Ігор Євгенійович', email: 'khodakivskyi@enterprise.com', dept: 'IT', role: 'admin', password: 'admin123', created_at: '2026-01-01 09:00:00' },
+      { id: 2, name: 'Петренко Олена Василівна', email: 'petrenko@enterprise.com', dept: 'Finance', role: 'manager', password: '1234', created_at: '2026-01-01 09:01:00' }
     ]);
-    await Resource.create({ id: 1, name: 'GitHub організації', url: 'https://github.com/company', cat: 'development', desc: 'Репозиторій коду', access: 'IT', created_at: '2024-01-01 09:10:00' });
-    console.log('✅ Дані успішно додано!');
+    console.log('🌱 Seed data added');
   }
 }
 
 const db = {
   async loginUser(email, password) {
-    const user = await User.findOne({ email: email.toLowerCase().trim(), password: password });
+    const user = await User.findOne({ email: email.toLowerCase().trim(), password });
     if (!user) throw new Error('Невірний пароль або email');
     return user;
   },
@@ -73,6 +71,14 @@ const db = {
     await log.save();
   },
   async getResources() { return await Resource.find().sort({ id: -1 }); },
+  async createResource(data) {
+    const count = await Resource.countDocuments();
+    const res = new Resource({ ...data, id: count + 1, created_at: new Date().toLocaleString() });
+    return await res.save();
+  },
+  async deleteResource(id) {
+    return await Resource.findOneAndDelete({ id: Number(id) });
+  },
   async getStats() {
     const [u, r, t] = await Promise.all([User.countDocuments(), Resource.countDocuments(), Ticket.countDocuments()]);
     return { totalUsers: u, totalResources: r, totalTickets: t, adminCount: await User.countDocuments({role:'admin'}), managerCount: await User.countDocuments({role:'manager'}) };
