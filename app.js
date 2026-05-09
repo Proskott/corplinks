@@ -134,7 +134,7 @@ function showPage(page) {
 
   if(page==='resources') loadResources();
   if(page==='my') renderMyResources();
-  if(page==='it') { loadTickets().then(function(){renderTickets();}); }
+ if(page==='it') { loadTickets().then(function(){renderTickets();loadITStaff();}); }
   if(page==='finance') loadAccounting();
   if(page==='sales') loadContractors();
   if(page==='hr') loadHR();
@@ -278,6 +278,37 @@ function deleteResource(mongoId) {
 // =====================================================
 // IT-ЗАЯВКИ
 // =====================================================
+function loadITStaff() {
+  return api('GET','/users').then(function(users){
+    var sel=document.getElementById('ticketAssignee');
+    var filterSel=document.getElementById('ticketFilterAssignee');
+    if(!sel) return;
+    
+    // В селект форми — тільки IT та адміни
+    var itUsers=users.filter(function(u){
+      return u.dept==='IT'||u.role==='admin';
+    });
+    
+    sel.innerHTML='<option value="">-- Автоматично (будь-хто з IT) --</option>'+
+      itUsers.map(function(u){
+        return '<option value="'+u._id+'" data-name="'+esc(u.name)+'">'+esc(u.name)+' ('+esc(u.dept)+')</option>';
+      }).join('');
+    
+    // В фільтр — всі унікальні виконавці з існуючих тікетів
+    if(filterSel){
+      var assignees={};
+      state.tickets.forEach(function(t){
+        if(t.assignedToName&&t.assignedToName!=='Не призначено'){
+          assignees[t.assignedTo]=t.assignedToName;
+        }
+      });
+      filterSel.innerHTML='<option value="">Всі виконавці</option>'+
+        Object.keys(assignees).map(function(id){
+          return '<option value="'+id+'">'+esc(assignees[id])+'</option>';
+        }).join('');
+    }
+  }).catch(function(){});
+}
 function loadTickets() {
   return api('GET','/tickets').then(function(data){state.tickets=data;});
 }
@@ -287,11 +318,22 @@ function submitTicket() {
   var cat=document.getElementById('ticketCat').value;
   var priority=document.getElementById('ticketPriority').value;
   var desc=document.getElementById('ticketDesc').value.trim();
+  var assigneeSel=document.getElementById('ticketAssignee');
+  var assignedTo=assigneeSel?assigneeSel.value:'';
+  var assignedToName='Не призначено';
+  if(assigneeSel&&assigneeSel.selectedIndex>0){
+    assignedToName=assigneeSel.options[assigneeSel.selectedIndex].getAttribute('data-name')||'Не призначено';
+  }
   if(!title){showToast('Введіть тему заявки',true);return;}
-  api('POST','/tickets',{title:title,cat:cat,priority:priority,desc:desc,author:state.currentUser.name,authorId:state.currentUser.id,dept:state.currentUser.dept})
-  .then(function(){
+  api('POST','/tickets',{
+    title:title,cat:cat,priority:priority,desc:desc,
+    author:state.currentUser.name,authorId:state.currentUser._id||state.currentUser.id,
+    dept:state.currentUser.dept,
+    assignedTo:assignedTo,assignedToName:assignedToName
+  }).then(function(){
     document.getElementById('ticketTitle').value='';
     document.getElementById('ticketDesc').value='';
+    if(assigneeSel) assigneeSel.selectedIndex=0;
     document.getElementById('ticketFormBlock').style.display='none';
     showToast('Заявку надіслано');
     return loadTickets();
@@ -299,16 +341,24 @@ function submitTicket() {
   .catch(function(e){showToast(e.message,true);});
 }
 
+
 function renderTickets() {
   var fEl=document.getElementById('ticketFilter');
-  var filter=fEl?fEl.value:'';
+  var pEl=document.getElementById('ticketFilterPriority');
+  var aEl=document.getElementById('ticketFilterAssignee');
+  var filterStatus=fEl?fEl.value:'';
+  var filterPriority=pEl?pEl.value:'';
+  var filterAssignee=aEl?aEl.value:'';
   var list=state.tickets;
-  if(filter) list=list.filter(function(t){return t.status===filter;});
+  if(filterStatus) list=list.filter(function(t){return t.status===filterStatus;});
+  if(filterPriority) list=list.filter(function(t){return t.priority===filterPriority;});
+  if(filterAssignee) list=list.filter(function(t){return t.assignedTo===filterAssignee;});
+  
   var el=document.getElementById('ticketsList'); if(!el) return;
   if(!list.length){
     el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted)">'+
       '<div style="font-size:15px;font-weight:600;">Заявок немає</div>'+
-      '<div style="font-size:13px;margin-top:6px;">Все працює або заявки ще не створювались</div></div>';
+      '<div style="font-size:13px;margin-top:6px;">За обраними фільтрами заявок не знайдено</div></div>';
     return;
   }
 
@@ -316,17 +366,24 @@ function renderTickets() {
   el.innerHTML=list.slice().reverse().map(function(t){
     var pr=TICKET_PRIORITY[t.priority]||{label:t.priority,color:'#666'};
     var st=TICKET_STATUS[t.status]||{label:t.status,color:'#666'};
+    var assignee=t.assignedToName||'Не призначено';
+    var assigneeColor=assignee==='Не призначено'?'#94a3b8':'var(--primary)';
+    
     var btns='';
     if(isIT){
       if(t.status!=='inprogress') btns+='<button class="btn-icon" onclick="changeTicketStatus(\''+t._id+'\',\'inprogress\')">В роботу</button>';
       if(t.status!=='done') btns+='<button class="btn-icon" onclick="changeTicketStatus(\''+t._id+'\',\'done\')">Виконано</button>';
+      btns+='<button class="btn-icon" onclick="openAssignModal(\''+t._id+'\')">Призначити</button>';
       btns+='<button class="btn-icon danger" onclick="deleteTicket(\''+t._id+'\')">Видалити</button>';
     }
     return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px;margin-bottom:12px;">'+
       '<div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap;">'+
-      '<div><div style="font-weight:600;font-size:14px;color:var(--text-main)">'+esc(t.title)+'</div>'+
-      '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">'+(TICKET_CAT[t.cat]||t.cat)+' — '+esc(t.author)+' — '+esc(t.createdAt)+'</div></div>'+
-      '<div style="display:flex;gap:6px;flex-shrink:0">'+
+      '<div style="flex:1;min-width:200px;">'+
+      '<div style="font-weight:600;font-size:14px;color:var(--text-main)">'+esc(t.title)+'</div>'+
+      '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">'+(TICKET_CAT[t.cat]||t.cat)+' — '+esc(t.author)+' — '+esc(t.createdAt)+'</div>'+
+      '<div style="font-size:12px;margin-top:5px;color:'+assigneeColor+';font-weight:500;">Виконавець: '+esc(assignee)+'</div>'+
+      '</div>'+
+      '<div style="display:flex;gap:6px;flex-shrink:0;align-items:flex-start;">'+
       '<span style="font-size:11px;padding:3px 8px;border-radius:4px;font-weight:600;background:'+pr.color+'18;color:'+pr.color+';border:1px solid '+pr.color+'33;">'+pr.label+'</span>'+
       '<span style="font-size:11px;padding:3px 8px;border-radius:4px;font-weight:600;background:'+st.color+'18;color:'+st.color+';border:1px solid '+st.color+'33;">'+st.label+'</span>'+
       '</div></div>'+
@@ -352,6 +409,50 @@ function deleteTicket(mongoId) {
   }).then(function(){renderTickets();renderAllTickets();})
   .catch(function(e){showToast(e.message,true);});
 }
+function openAssignModal(ticketId) {
+  api('GET','/users').then(function(users){
+    var itUsers=users.filter(function(u){ return u.dept==='IT'||u.role==='admin'; });
+    var opts=itUsers.map(function(u){
+      return '<option value="'+u._id+'" data-name="'+esc(u.name)+'">'+esc(u.name)+' ('+esc(u.dept)+')</option>';
+    }).join('');
+    
+    var html='<div style="background:var(--surface);border:2px solid var(--primary);border-radius:8px;padding:20px;margin-bottom:16px;">'+
+      '<div style="font-weight:600;font-size:14px;margin-bottom:12px;color:var(--text-main);">Призначити виконавця</div>'+
+      '<select id="assignSelect" style="width:100%;padding:9px 14px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--surface);color:var(--text-main);margin-bottom:12px;">'+
+      '<option value="">-- Оберіть працівника --</option>'+opts+'</select>'+
+      '<div style="display:flex;gap:8px;justify-content:flex-end;">'+
+      '<button class="btn-cancel" onclick="closeAssignPanel()">Скасувати</button>'+
+      '<button class="btn-primary" onclick="confirmAssign(\''+ticketId+'\')">Призначити</button>'+
+      '</div></div>';
+    
+    // Вставляємо панель зверху списку заявок
+    var container=document.getElementById('ticketsList');
+    var existing=document.getElementById('assignPanel');
+    if(existing) existing.remove();
+    container.insertAdjacentHTML('beforebegin','<div id="assignPanel">'+html+'</div>');
+  });
+}
+
+function closeAssignPanel() {
+  var panel=document.getElementById('assignPanel');
+  if(panel) panel.remove();
+}
+
+function confirmAssign(ticketId) {
+  var sel=document.getElementById('assignSelect');
+  if(!sel||!sel.value){showToast('Оберіть працівника',true);return;}
+  var name=sel.options[sel.selectedIndex].getAttribute('data-name')||'';
+  api('PUT','/tickets/'+ticketId+'/assign',{
+    assignedTo:sel.value,
+    assignedToName:name,
+    adminName:state.currentUser.name
+  }).then(function(){
+    closeAssignPanel();
+    showToast('Виконавця призначено: '+name);
+    return loadTickets();
+  }).then(function(){renderTickets();renderAllTickets();})
+  .catch(function(e){showToast(e.message,true);});
+}
 
 function renderAllTickets() {
   var el=document.getElementById('allTicketsList'); if(!el) return;
@@ -359,16 +460,21 @@ function renderAllTickets() {
   var rows=state.tickets.slice().reverse().map(function(t){
     var pr=TICKET_PRIORITY[t.priority]||{label:t.priority,color:'#666'};
     var st=TICKET_STATUS[t.status]||{label:t.status,color:'#666'};
-    return '<tr><td><b>'+esc(t.title)+'</b><br><span style="font-size:11px;color:var(--text-muted)">'+esc(t.createdAt||'')+'</span></td>'+
-      '<td>'+esc(t.author)+'</td>'+
+    var assignee=t.assignedToName||'Не призначено';
+    var assigneeStyle=assignee==='Не призначено'?'color:#94a3b8;font-style:italic;':'color:var(--text-main);font-weight:600;';
+    return '<tr>'+
+      '<td><b>'+esc(t.title)+'</b><br><span style="font-size:11px;color:var(--text-muted)">'+esc(t.createdAt||'')+'</span></td>'+
+      '<td>'+esc(t.author)+'<br><span style="font-size:11px;color:var(--text-muted)">'+esc(t.dept||'')+'</span></td>'+
+      '<td><span style="'+assigneeStyle+'font-size:12px;">'+esc(assignee)+'</span></td>'+
       '<td><span style="font-size:11px;padding:2px 7px;border-radius:4px;background:'+pr.color+'18;color:'+pr.color+';font-weight:600;border:1px solid '+pr.color+'33;">'+pr.label+'</span></td>'+
       '<td><select onchange="changeTicketStatus(\''+t._id+'\',this.value)" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text-main)">'+
       '<option value="new"'+(t.status==='new'?' selected':'')+'>Нова</option>'+
       '<option value="inprogress"'+(t.status==='inprogress'?' selected':'')+'>В роботі</option>'+
       '<option value="done"'+(t.status==='done'?' selected':'')+'>Виконано</option></select>'+
+      ' <button class="btn-icon" onclick="openAssignModal(\''+t._id+'\')">Призначити</button>'+
       ' <button class="btn-icon danger" onclick="deleteTicket(\''+t._id+'\')">Видалити</button></td></tr>';
   }).join('');
-  el.innerHTML='<div class="table-wrap"><table class="data-table"><thead><tr><th>Тема</th><th>Від кого</th><th>Пріоритет</th><th>Статус / Дії</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  el.innerHTML='<div class="table-wrap"><table class="data-table"><thead><tr><th>Тема</th><th>Від кого</th><th>Виконавець</th><th>Пріоритет</th><th>Статус / Дії</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 // =====================================================
 // ВАРІАНТ 1: ТРЕКІНГ КЛІКІВ ТА РЕКОМЕНДАЦІЇ

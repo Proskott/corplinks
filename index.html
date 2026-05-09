@@ -95,17 +95,37 @@
               <select id="ticketPriority"><option value="low">Низький</option><option value="medium" selected>Середній</option><option value="high">Високий</option></select>
             </div>
           </div>
+          <div class="form-group">
+            <label>Призначити на виконавця</label>
+            <select id="ticketAssignee"><option value="">-- Автоматично (будь-хто з IT) --</option></select>
+          </div>
           <div class="form-group"><label>Опис проблеми</label><textarea id="ticketDesc" rows="3" placeholder="Опишіть проблему докладніше..."></textarea></div>
           <div style="display:flex;gap:10px;justify-content:flex-end;">
             <button class="btn-cancel" onclick="toggleBlock('ticketFormBlock')">Скасувати</button>
             <button class="btn-primary" onclick="submitTicket()">Надіслати заявку</button>
           </div>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+
+        <!-- Фільтри -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
           <h3 style="font-size:15px;font-weight:600;color:var(--text-main);">Заявки</h3>
-          <select id="ticketFilter" onchange="renderTickets()" style="width:auto;padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text-main);">
-            <option value="">Всі статуси</option><option value="new">Нові</option><option value="inprogress">В роботі</option><option value="done">Виконані</option>
-          </select>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <select id="ticketFilterPriority" onchange="renderTickets()" style="width:auto;padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text-main);">
+              <option value="">Всі пріоритети</option>
+              <option value="low">Низький</option>
+              <option value="medium">Середній</option>
+              <option value="high">Високий</option>
+            </select>
+            <select id="ticketFilter" onchange="renderTickets()" style="width:auto;padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text-main);">
+              <option value="">Всі статуси</option>
+              <option value="new">Нові</option>
+              <option value="inprogress">В роботі</option>
+              <option value="done">Виконані</option>
+            </select>
+            <select id="ticketFilterAssignee" onchange="renderTickets()" style="width:auto;padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text-main);">
+              <option value="">Всі виконавці</option>
+            </select>
+          </div>
         </div>
         <div id="ticketsList"></div>
       </section>

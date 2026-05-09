@@ -14,7 +14,13 @@ router.post('/', async (req, res) => {
     res.json(t);
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
-
+router.put('/:id/assign', async (req, res) => {
+  try {
+    await db.updateTicketAssignee(req.params.id, req.body.assignedTo, req.body.assignedToName);
+    await db.addLog('Заявку призначено на: ' + req.body.assignedToName, req.body.adminName || 'Система');
+    res.json({ success: true });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
 router.put('/:id/status', async (req, res) => {
   try {
     await db.updateTicketStatus(req.params.id, req.body.status);

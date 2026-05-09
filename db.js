@@ -12,7 +12,9 @@ var userSchema = new mongoose.Schema({
 });
 var ticketSchema = new mongoose.Schema({
   title: String, cat: String, priority: String, desc: String,
-  status: String, author: String, authorId: String, dept: String, createdAt: String
+  status: String, author: String, authorId: String, dept: String,
+  assignedTo: String, assignedToName: String,
+  createdAt: String
 });
 var logSchema = new mongoose.Schema({
   action: String, user_name: String, created_at: String
@@ -194,6 +196,8 @@ var db = {
 
   async updateTicketStatus(mongoId, status) {
     return await Ticket.findByIdAndUpdate(mongoId, { status: status }, { new: true });
+  },async updateTicketAssignee(mongoId, assignedTo, assignedToName) {
+    return await Ticket.findByIdAndUpdate(mongoId, { assignedTo: assignedTo, assignedToName: assignedToName }, { new: true });
   },
 
   async deleteTicket(mongoId) { return await Ticket.findByIdAndDelete(mongoId); },
