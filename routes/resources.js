@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
-// ВАРІАНТ 2: Якщо передано userId — фільтрує по доступу
 router.get('/', async (req, res) => {
   try {
     if (req.query.userId) {
@@ -13,14 +12,25 @@ router.get('/', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ВАРІАНТ 1: Рекомендації для юзера
 router.get('/recommendations/:userId', async (req, res) => {
   try {
     res.json(await db.getRecommendations(req.params.userId));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ВАРІАНТ 1: Зафіксувати клік
+router.get('/favorites/:userId', async (req, res) => {
+  try {
+    res.json(await db.getFavorites(req.params.userId));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/:id/favorite', async (req, res) => {
+  try {
+    var result = await db.toggleFavorite(req.body.userId, req.params.id);
+    res.json({ isFavorite: result });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 router.post('/:id/click', async (req, res) => {
   try {
     await db.trackClick(req.body.userId, req.params.id, req.body.userDept);

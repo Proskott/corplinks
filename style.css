@@ -171,3 +171,18 @@ select[multiple] option:checked { background:#e0f2fe; color:var(--primary); font
 .nav-btn.active .nav-icon { opacity:1; }
 .nav-btn:hover .nav-icon { opacity:1; }
 }
+/* Фікс темної теми для бейджів */
+body.dark .dept-badge {
+  background: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+body.dark .data-table td span[style*="background:#f1f5f9"] {
+  background: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+/* Lucide іконки у сайдбарі */
+.nav-icon { width:18px; height:18px; stroke-width:1.8; flex-shrink:0; opacity:.7; }
+.nav-btn.active .nav-icon { opacity:1; }
+.nav-btn:hover .nav-icon { opacity:1; }

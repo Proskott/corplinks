@@ -36,13 +36,12 @@ var hrSchema = new mongoose.Schema({
 var contactSchema = new mongoose.Schema({
   name: String, position: String, phone: String, email: String, created_at: String
 });
-
-// ВАРІАНТ 1: Схема кліків — відстежує використання ресурсів
 var clickSchema = new mongoose.Schema({
-  userId: String,
-  resourceId: String,
-  userDept: String,
+  userId: String, resourceId: String, userDept: String,
   timestamp: { type: Date, default: Date.now }
+});
+var favoriteSchema = new mongoose.Schema({
+  userId: String, resourceId: String
 });
 
 var User = mongoose.model('User', userSchema);
@@ -54,15 +53,18 @@ var Contractor = mongoose.model('Contractor', contractorSchema);
 var HR = mongoose.model('HR', hrSchema);
 var Contact = mongoose.model('Contact', contactSchema);
 var Click = mongoose.model('Click', clickSchema);
+var Favorite = mongoose.model('Favorite', favoriteSchema);
 
 var db = {
 
+  // --- АВТОРИЗАЦІЯ ---
   async loginUser(email, password) {
     var user = await User.findOne({ email: email.toLowerCase().trim(), password: password });
     if (!user) throw new Error('Невірний email або пароль');
     return user;
   },
 
+  // --- КОРИСТУВАЧІ ---
   async getUsers() { return await User.find().sort({ name: 1 }); },
 
   async createUser(data) {
@@ -88,10 +90,11 @@ var db = {
     var user = await User.findByIdAndDelete(mongoId);
     if (!user) throw new Error('Не знайдено');
     await Click.deleteMany({ userId: mongoId });
+    await Favorite.deleteMany({ userId: mongoId });
     return user;
   },
 
-  // ВАРІАНТ 2: Ресурси з адаптивним доступом
+  // --- РЕСУРСИ З АДАПТИВНИМ ДОСТУПОМ ---
   async getResources() { return await Resource.find().sort({ _id: -1 }); },
 
   async getResourcesForUser(userId) {
@@ -125,10 +128,28 @@ var db = {
 
   async deleteResource(mongoId) {
     await Click.deleteMany({ resourceId: mongoId });
+    await Favorite.deleteMany({ resourceId: mongoId });
     return await Resource.findByIdAndDelete(mongoId);
   },
 
-  // ВАРІАНТ 1: Трекінг кліків та рекомендації
+  // --- ОБРАНІ ---
+  async getFavorites(userId) {
+    var favs = await Favorite.find({ userId: userId });
+    return favs.map(function(f) { return f.resourceId; });
+  },
+
+  async toggleFavorite(userId, resourceId) {
+    var existing = await Favorite.findOne({ userId: userId, resourceId: resourceId });
+    if (existing) {
+      await Favorite.findByIdAndDelete(existing._id);
+      return false;
+    } else {
+      await new Favorite({ userId: userId, resourceId: resourceId }).save();
+      return true;
+    }
+  },
+
+  // --- ТРЕКІНГ КЛІКІВ ---
   async trackClick(userId, resourceId, userDept) {
     await new Click({ userId: userId, resourceId: resourceId, userDept: userDept }).save();
   },
@@ -154,35 +175,27 @@ var db = {
   async getRecommendations(userId) {
     var user = await User.findById(userId);
     if (!user) return { personal: [], department: [], userDept: '' };
-
     var personal = await this.getFrequentForUser(userId);
     var department = await this.getPopularInDept(user.dept);
-
     var allIds = [];
     personal.forEach(function(p) { allIds.push(p._id); });
     department.forEach(function(d) { allIds.push(d._id); });
-
     var resources = await Resource.find({ _id: { $in: allIds } });
     var resMap = {};
     resources.forEach(function(r) { resMap[r._id.toString()] = r; });
-
     var personalIds = personal.map(function(p) { return p._id; });
-
     var personalFull = personal.map(function(p) {
-      var r = resMap[p._id];
-      return r ? { resource: r, clicks: p.count } : null;
+      var r = resMap[p._id]; return r ? { resource: r, clicks: p.count } : null;
     }).filter(Boolean);
-
     var departmentFull = department.filter(function(d) {
       return personalIds.indexOf(d._id) === -1;
     }).map(function(d) {
-      var r = resMap[d._id];
-      return r ? { resource: r, clicks: d.count } : null;
+      var r = resMap[d._id]; return r ? { resource: r, clicks: d.count } : null;
     }).filter(Boolean);
-
     return { personal: personalFull, department: departmentFull, userDept: user.dept };
   },
 
+  // --- ЗАЯВКИ ---
   async getTickets() { return await Ticket.find().sort({ _id: -1 }); },
 
   async createTicket(data) {
@@ -190,18 +203,23 @@ var db = {
       title: data.title, cat: data.cat, priority: data.priority,
       desc: data.desc, status: 'new', author: data.author,
       authorId: data.authorId, dept: data.dept,
+      assignedTo: data.assignedTo || '',
+      assignedToName: data.assignedToName || 'Не призначено',
       createdAt: new Date().toLocaleString('uk-UA')
     }).save();
   },
 
   async updateTicketStatus(mongoId, status) {
     return await Ticket.findByIdAndUpdate(mongoId, { status: status }, { new: true });
-  },async updateTicketAssignee(mongoId, assignedTo, assignedToName) {
+  },
+
+  async updateTicketAssignee(mongoId, assignedTo, assignedToName) {
     return await Ticket.findByIdAndUpdate(mongoId, { assignedTo: assignedTo, assignedToName: assignedToName }, { new: true });
   },
 
   async deleteTicket(mongoId) { return await Ticket.findByIdAndDelete(mongoId); },
 
+  // --- БУХГАЛТЕРІЯ ---
   async getAccounting() { return await Accounting.find().sort({ _id: -1 }); },
   async createAccounting(data) {
     return await new Accounting({
@@ -211,6 +229,7 @@ var db = {
   },
   async deleteAccounting(mongoId) { return await Accounting.findByIdAndDelete(mongoId); },
 
+  // --- КОНТРАГЕНТИ ---
   async getContractors() { return await Contractor.find().sort({ company: 1 }); },
   async createContractor(data) {
     return await new Contractor({
@@ -221,6 +240,7 @@ var db = {
   },
   async deleteContractor(mongoId) { return await Contractor.findByIdAndDelete(mongoId); },
 
+  // --- HR ---
   async getHR() { return await HR.find().sort({ _id: -1 }); },
   async createHR(data) {
     return await new HR({
@@ -230,6 +250,7 @@ var db = {
   },
   async deleteHR(mongoId) { return await HR.findByIdAndDelete(mongoId); },
 
+  // --- КОНТАКТИ ---
   async getContacts() { return await Contact.find().sort({ name: 1 }); },
   async createContact(data) {
     return await new Contact({
@@ -239,11 +260,13 @@ var db = {
   },
   async deleteContact(mongoId) { return await Contact.findByIdAndDelete(mongoId); },
 
+  // --- ЖУРНАЛ ---
   async getLogs() { return await Log.find().sort({ _id: -1 }).limit(100); },
   async addLog(action, userName) {
     await new Log({ action: action, user_name: userName || 'Система', created_at: new Date().toLocaleString('uk-UA') }).save();
   },
 
+  // --- СТАТИСТИКА ---
   async getStats() {
     var results = await Promise.all([
       User.countDocuments(), Resource.countDocuments(), Ticket.countDocuments(),
