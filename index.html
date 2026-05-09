@@ -270,7 +270,33 @@
       <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('userOverlay')">Скасувати</button><button class="btn-primary" onclick="saveUser()">Зберегти</button></div>
     </div>
   </div>
-
+<!-- НОВЕ: Модальне вікно для редагування посилань -->
+  <div class="modal-overlay" id="editOverlay" onclick="overlayClick(event,'editOverlay')">
+    <div class="modal">
+      <h2>Редагувати посилання</h2>
+      <!-- Приховані поля для збереження ID та типу відділу -->
+      <input type="hidden" id="editResId" />
+      <input type="hidden" id="editResDept" />
+      
+      <div class="form-group">
+        <label>Назва *</label>
+        <input type="text" id="editResName" placeholder="Введіть назву" />
+      </div>
+      <div class="form-group">
+        <label>URL / Дані *</label>
+        <input type="text" id="editResUrl" placeholder="https://..." />
+      </div>
+      <div class="form-group">
+        <label>Опис</label>
+        <textarea id="editResDesc" rows="2" placeholder="Для чого використовується..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('editOverlay')">Скасувати</button>
+        <button class="btn-primary" onclick="saveEditedResource()">Зберегти зміни</button>
+      </div>
+    </div>
+  </div>
+  
   <script src="app.js"></script>
   <script>
     if(window.lucide) lucide.createIcons();

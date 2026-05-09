@@ -15,6 +15,7 @@ app.use('/api/resources',    require('./routes/resources'));
 app.use('/api/logs',         require('./routes/logs'));
 app.use('/api/accounting',   require('./routes/accounting'));
 app.use('/api/contractors',  require('./routes/contractors'));
+app.use('/api/hr',           require('./routes/hr'));
 
 app.post('/api/auth/login', async (req, res) => {
   try {

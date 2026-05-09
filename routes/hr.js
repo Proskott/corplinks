@@ -17,5 +17,13 @@ router.delete('/:id', async (req, res) => {
   await db.deleteHR(req.params.id);
   res.json({ success: true });
 });
-
+router.put('/:id', async (req, res) => {
+  try {
+    const updatedItem = await db.updateHR(req.params.id, req.body);
+    await db.addLog('Оновлено HR-ресурс: ' + req.body.title, 'HR-Manager');
+    res.json(updatedItem);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 module.exports = router;

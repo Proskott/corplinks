@@ -503,11 +503,19 @@ function renderAccounting(){
     var contentHtml=isLink?'<a class="card-url" href="'+esc(val)+'" target="_blank">'+esc(val)+'</a>':'<div style="font-size:18px;font-weight:bold;margin:8px 0;">'+esc(val)+' грн</div>';
     var descHtml=item.description?'<p class="card-desc">'+esc(item.description)+'</p>':'<p class="card-desc" style="color:#94a3b8;font-style:italic">Без опису</p>';
     var isMgr=state.currentUser&&(state.currentUser.role==='admin'||state.currentUser.role==='manager'||state.currentUser.dept==='Finance');
-    var btns=isMgr?'<button class="btn-icon danger" onclick="deleteAccounting(\''+item._id+'\')">Видалити</button>':'';
+    
+    // ДОДАНО: Кнопка редагування
+    var safeTitle = esc(item.title).replace(/'/g, "\\'");
+    var safeVal = esc(val).replace(/'/g, "\\'");
+    var safeDesc = esc(item.description||'').replace(/'/g, "\\'");
+    var btnEdit = isMgr ? '<button class="btn-icon" onclick="openEditModal(\''+item._id+'\', \'finance\', \''+safeTitle+'\', \''+safeVal+'\', \''+safeDesc+'\')">Редагувати</button> ' : '';
+    
+    var btns=isMgr ? btnEdit + '<button class="btn-icon danger" onclick="deleteAccounting(\''+item._id+'\')">Видалити</button>':'';
     return '<div class="card" style="border-left:4px solid #059669"><div class="card-header"><span class="card-title">'+esc(item.title)+'</span></div>'+contentHtml+descHtml+
       '<div class="card-actions">'+btns+'</div></div>';
   }).join('');
 }
+
 
 function submitDeptRes(access,prefix){
   var name=document.getElementById(prefix+'ResName').value.trim();
@@ -580,7 +588,14 @@ function renderHR(){
     var val=item.url||'';var isLink=val.trim().toLowerCase().indexOf('http')===0;
     var contentHtml=isLink?'<a class="card-url" href="'+esc(val)+'" target="_blank">'+esc(val)+'</a>':'<div style="font-size:14px;font-weight:bold;margin:8px 0;">'+esc(val)+'</div>';
     var descHtml=item.description?'<p class="card-desc">'+esc(item.description)+'</p>':'<p class="card-desc" style="color:#94a3b8;font-style:italic">Без опису</p>';
-    var btns=isMgr?'<button class="btn-icon danger" onclick="deleteHR(\''+item._id+'\')">Видалити</button>':'';
+    
+    // ДОДАНО: Кнопка редагування
+    var safeTitle = esc(item.title).replace(/'/g, "\\'");
+    var safeVal = esc(val).replace(/'/g, "\\'");
+    var safeDesc = esc(item.description||'').replace(/'/g, "\\'");
+    var btnEdit = isMgr ? '<button class="btn-icon" onclick="openEditModal(\''+item._id+'\', \'hr\', \''+safeTitle+'\', \''+safeVal+'\', \''+safeDesc+'\')">Редагувати</button> ' : '';
+    
+    var btns=isMgr ? btnEdit + '<button class="btn-icon danger" onclick="deleteHR(\''+item._id+'\')">Видалити</button>':'';
     return '<div class="card" style="border-left:4px solid #db2777"><div class="card-header"><span class="card-title">'+esc(item.title)+'</span></div>'+contentHtml+descHtml+
       '<div class="card-actions">'+btns+'</div></div>';
   }).join('');
@@ -739,7 +754,60 @@ function loadLogs(){
     }).join('');
   }).catch(function(){});
 }
+// =====================================================
+// РЕДАГУВАННЯ ЗАПИСІВ (УНІВЕРСАЛЬНЕ ВІКНО)
+// =====================================================
 
+function openEditModal(id, dept, name, url, desc) {
+  // Заповнюємо поля
+  document.getElementById('editResId').value = id;
+  document.getElementById('editResDept').value = dept;
+  document.getElementById('editResName').value = name;
+  document.getElementById('editResUrl').value = url;
+  document.getElementById('editResDesc').value = desc !== 'undefined' ? desc : '';
+
+  // Відкриваємо модалку за допомогою твого існуючого класу "open"
+  document.getElementById('editOverlay').classList.add('open');
+}
+
+function saveEditedResource() {
+  var id = document.getElementById('editResId').value;
+  var dept = document.getElementById('editResDept').value;
+  var name = document.getElementById('editResName').value.trim();
+  var url = document.getElementById('editResUrl').value.trim();
+  var desc = document.getElementById('editResDesc').value.trim();
+
+  if (!name || !url) {
+    showToast('Будь ласка, заповніть Назву та URL', true);
+    return;
+  }
+
+  // Визначаємо куди стукати на бекенд в залежності від відділу
+  var endpoint = '';
+  var body = {};
+
+  if (dept === 'finance') {
+    endpoint = '/accounting/' + id;
+    body = { title: name, amount: url, description: desc };
+  } else if (dept === 'hr') {
+    endpoint = '/hr/' + id;
+    body = { title: name, url: url, description: desc };
+  }
+
+  // Відправляємо PUT запит на сервер
+  api('PUT', endpoint, body)
+    .then(function() {
+      closeModal('editOverlay'); // Закриваємо вікно
+      showToast('Запис успішно оновлено');
+      
+      // Оновлюємо дані на сторінці
+      if (dept === 'finance') loadAccounting();
+      if (dept === 'hr') loadHR();
+    })
+    .catch(function(e) {
+      showToast(e.message, true);
+    });
+}
 // =====================================================
 // СТАРТ
 // =====================================================

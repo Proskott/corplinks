@@ -19,5 +19,13 @@ router.delete('/:id', async (req, res) => {
   await db.deleteContractor(req.params.id);
   res.json({ success: true });
 });
-
+router.put('/:id', async (req, res) => {
+  try {
+    const updatedItem = await db.updateContractor(req.params.id, req.body);
+    await db.addLog('Оновлено запис контрагента: ' + req.body.company, 'Sales/Manager');
+    res.json(updatedItem);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 module.exports = router;
