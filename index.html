@@ -53,6 +53,7 @@
         <button class="nav-btn admin-only" id="nb-admin" onclick="showPage('admin')" style="margin-top:auto;"><i data-lucide="settings" class="nav-icon"></i> Адміністратор</button>
       </nav>
       <div class="user-profile" id="currentUserProfile"></div>
+      <button class="theme-toggle" onclick="openPasswordModal()">Змінити пароль</button>
       <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">Темна тема</button>
       <button class="logout-btn" onclick="logout()">Завершити сеанс</button>
     </aside>
@@ -296,7 +297,15 @@
       </div>
     </div>
   </div>
-  
+  <div class="modal-overlay" id="passwordOverlay" onclick="overlayClick(event,'passwordOverlay')">
+    <div class="modal">
+      <h2>Зміна пароля</h2>
+      <div class="form-group"><label>Поточний пароль *</label><input type="password" id="oldPassword" placeholder="Введіть поточний пароль..." /></div>
+      <div class="form-group"><label>Новий пароль *</label><input type="password" id="newPassword" placeholder="Мінімум 4 символи..." /></div>
+      <div class="form-group"><label>Повторіть новий пароль *</label><input type="password" id="newPassword2" placeholder="Повторіть..." /></div>
+      <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('passwordOverlay')">Скасувати</button><button class="btn-primary" onclick="changeMyPassword()">Змінити пароль</button></div>
+    </div>
+  </div>
   <script src="app.js"></script>
   <script>
     if(window.lucide) lucide.createIcons();

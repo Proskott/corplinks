@@ -2,30 +2,32 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
-router.get('/', async (req, res) => res.json(await db.getContractors()));
+router.get('/', async (req, res) => {
+  try { res.json(await db.getContractors()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 router.post('/', async (req, res) => {
-  // Теперь принимаем расширенный объект: { company, phone, service, docType, amount }
-  const item = await db.createContractor(req.body);
-  
-  // Логируем событие с указанием типа документа для истории
-  const actionText = `Додано запис контрагента: ${item.company} (${item.docType || 'Загальне'})`;
-  await db.addLog(actionText, 'Sales/Manager');
-  
-  res.json(item);
+  try {
+    var item = await db.createContractor(req.body);
+    await db.addLog('Додано контрагента: ' + item.company, 'Sales/Manager');
+    res.json(item);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.put('/:id', async (req, res) => {
+  try {
+    var item = await db.updateContractor(req.params.id, req.body);
+    await db.addLog('Оновлено контрагента: ' + item.company, 'Sales/Manager');
+    res.json(item);
+  } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
 router.delete('/:id', async (req, res) => {
-  await db.deleteContractor(req.params.id);
-  res.json({ success: true });
-});
-router.put('/:id', async (req, res) => {
   try {
-    const updatedItem = await db.updateContractor(req.params.id, req.body);
-    await db.addLog('Оновлено запис контрагента: ' + req.body.company, 'Sales/Manager');
-    res.json(updatedItem);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
+    await db.deleteContractor(req.params.id);
+    res.json({ success: true });
+  } catch (e) { res.status(400).json({ error: e.message }); }
 });
+
 module.exports = router;

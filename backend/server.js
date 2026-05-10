@@ -9,13 +9,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
-app.use('/api/users',        require('./routes/users'));
-app.use('/api/tickets',      require('./routes/tickets'));
-app.use('/api/resources',    require('./routes/resources'));
-app.use('/api/logs',         require('./routes/logs'));
-app.use('/api/accounting',   require('./routes/accounting'));
-app.use('/api/contractors',  require('./routes/contractors'));
-app.use('/api/hr',           require('./routes/hr'));
+app.use('/api/users',       require('./routes/users'));
+app.use('/api/tickets',     require('./routes/tickets'));
+app.use('/api/resources',   require('./routes/resources'));
+app.use('/api/logs',        require('./routes/logs'));
+app.use('/api/accounting',  require('./routes/accounting'));
+app.use('/api/contractors', require('./routes/contractors'));
+app.use('/api/hr',          require('./routes/hr'));
+app.use('/api/contacts',    require('./routes/contacts'));
 
 app.post('/api/auth/login', async (req, res) => {
   try {
@@ -25,6 +26,17 @@ app.post('/api/auth/login', async (req, res) => {
     res.json({ success: true, user });
   } catch (err) {
     res.status(401).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/change-password', async (req, res) => {
+  try {
+    var { userId, oldPassword, newPassword } = req.body;
+    await db.changePassword(userId, oldPassword, newPassword);
+    await db.addLog('Змінено пароль', 'Система');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
