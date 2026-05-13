@@ -29,7 +29,16 @@ app.post('/api/auth/login', async (req, res) => {
     res.status(401).json({ error: err.message });
   }
 });
-
+app.post('/api/auth/change-password', async (req, res) => {
+  try {
+    var { userId, oldPassword, newPassword } = req.body;
+    await db.changePassword(userId, oldPassword, newPassword);
+    await db.addLog('Змінено пароль', 'Система');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 app.get('/api/stats', async (req, res) => res.json(await db.getStats()));
 
 // Кінцева точка для SPA
